@@ -1,0 +1,14 @@
+# Navigate to your backend folder
+cd /path/to/Harmoura/backend
+
+# Activate the virtual environment (macOS / Linux)
+source venv-backend/bin/activate
+
+# On Windows (CMD)
+venv-backend\Scripts\activate.bat
+
+# On Windows (PowerShell)
+venv-backend\Scripts\Activate.ps1
+
+# To deactivate the virtual environment
+deactivate
