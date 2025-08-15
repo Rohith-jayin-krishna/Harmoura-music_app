@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaPlay, FaEllipsisV } from "react-icons/fa";
 
-interface Song {
+export interface Song {
   id: number;
   title: string;
   artist: string;
@@ -17,7 +17,7 @@ interface Playlist {
 }
 
 interface LibraryProps {
-  onPlay: (song: Song) => void;
+  onPlay: (song: Song, playlist?: Song[]) => void;
   currentSong: Song | null;
 }
 
@@ -38,20 +38,17 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const playlistRes = await axios.get(
-          `${baseURL}/api/users/playlists/`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const playlistRes = await axios.get(`${baseURL}/api/users/playlists/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setPlaylists(playlistRes.data);
 
-        const songsRes = await axios.get(
-          `${baseURL}/api/users/songs/`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        // Normalize src here so onPlay gets ready-to-play URL
+        const songsRes = await axios.get(`${baseURL}/api/users/songs/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const normalizedSongs = songsRes.data.map((s: any) => ({
           ...s,
-          src: toFullUrl(s.src || s.file || s.audio || "")
+          src: toFullUrl(s.src || s.file || s.audio || ""),
         }));
         setAllSongs(normalizedSongs);
       } catch (err) {
@@ -179,10 +176,7 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    // Ensure src is fully qualified before calling onPlay
-                    onPlay({ ...song, src: toFullUrl(song.src) });
-                  }}
+                  onClick={() => onPlay(song, openPlaylist.songs)} // ✅ Pass playlist directly
                   className="bg-[#f9243d] text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
                 >
                   <FaPlay />
