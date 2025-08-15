@@ -189,3 +189,17 @@ def admin_delete_song(request, song_id):
         return Response({"message": "Song deleted successfully"})
     except Song.DoesNotExist:
         return Response({"error": "Song not found"}, status=status.HTTP_404_NOT_FOUND)
+  # ---------------- User Profile ---------------- #
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_profile(request):
+    """
+    Fetch the profile of the currently logged-in user.
+    """
+    user = request.user
+    return Response({
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+    })
