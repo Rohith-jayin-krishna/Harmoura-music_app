@@ -12,6 +12,7 @@ import Register from "./pages/Register";
 
 export default function App() {
   const [songs, setSongs] = useState<any[]>([]);
+  const [activePlaylist, setActivePlaylist] = useState<any[] | null>(null); 
   const [currentSongIndex, setCurrentSongIndex] = useState<number | null>(null);
   const [currentSong, setCurrentSong] = useState<any | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -66,47 +67,55 @@ export default function App() {
     setCurrentSong(null);
     setCurrentSongIndex(null);
     setIsPlaying(false);
+    setActivePlaylist(null);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
   };
 
-  // ===== Updated Play Logic =====
-  const handlePlaySong = (song: any) => {
+  // ===== Play Logic with Playlist Support =====
+  const handlePlaySong = (song: any, playlist?: any[]) => {
     if (!song) return;
 
-    const raw = song?.src || song?.file || song?.audio || "";
-    const audioUrl = toFullUrl(raw);
-    if (!audioUrl) {
-      console.error("No valid audio URL found for song:", song);
-      return;
-    }
-
-    // If clicking same song, toggle play/pause
+    // Toggle play/pause if same song clicked
     if (currentSong?.id === song.id) {
       togglePlayPause();
       return;
     }
 
-    // Make sure audioRef is ready before playing
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = audioUrl;
+    const audioUrl = toFullUrl(song?.src || song?.file || song?.audio || "");
+    if (!audioUrl) {
+      console.error("No valid audio URL found for song:", song);
+      return;
+    }
 
+    // Set current song (we play in useEffect)
+    setCurrentSong({ ...song, src: audioUrl });
+
+    // Set the active playlist if provided
+    if (playlist && playlist.length) {
+      setActivePlaylist(playlist);
+      const index = playlist.findIndex((s) => s.id === song.id);
+      setCurrentSongIndex(index !== -1 ? index : null);
+    } else {
+      setActivePlaylist(null);
+      const index = songs.findIndex((s) => s.id === song.id);
+      setCurrentSongIndex(index !== -1 ? index : null);
+    }
+  };
+
+  // Play when currentSong changes
+  useEffect(() => {
+    if (currentSong && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = currentSong.src;
       audioRef.current
         .play()
         .then(() => setIsPlaying(true))
         .catch((err) => console.log("Play blocked:", err));
     }
-
-    const playable = { ...song, src: audioUrl };
-    setCurrentSong(playable);
-
-    // Update index if song exists in central library
-    const index = songs.findIndex((s) => s.id === song.id);
-    setCurrentSongIndex(index !== -1 ? index : null);
-  };
+  }, [currentSong]);
 
   const togglePlayPause = () => {
     if (!audioRef.current) return;
@@ -122,17 +131,19 @@ export default function App() {
   };
 
   const playNext = () => {
-    if (currentSongIndex === null || songs.length === 0) return;
-    const nextIndex = (currentSongIndex + 1) % songs.length;
+    const list = activePlaylist || songs;
+    if (currentSongIndex === null || list.length === 0) return;
+    const nextIndex = (currentSongIndex + 1) % list.length;
     setCurrentSongIndex(nextIndex);
-    handlePlaySong(songs[nextIndex]);
+    handlePlaySong(list[nextIndex], activePlaylist || undefined);
   };
 
   const playPrevious = () => {
-    if (currentSongIndex === null || songs.length === 0) return;
-    const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+    const list = activePlaylist || songs;
+    if (currentSongIndex === null || list.length === 0) return;
+    const prevIndex = (currentSongIndex - 1 + list.length) % list.length;
     setCurrentSongIndex(prevIndex);
-    handlePlaySong(songs[prevIndex]);
+    handlePlaySong(list[prevIndex], activePlaylist || undefined);
   };
 
   return (
@@ -154,7 +165,10 @@ export default function App() {
               path="/library"
               element={
                 user ? (
-                  <Library onPlay={handlePlaySong} currentSong={currentSong} />
+                  <Library
+                    onPlay={(song, playlist) => handlePlaySong(song, playlist)}
+                    currentSong={currentSong}
+                  />
                 ) : (
                   <Navigate to="/signin" />
                 )
@@ -175,7 +189,11 @@ export default function App() {
               <p className="text-sm opacity-90">{currentSong.artist}</p>
             </div>
             <div className="flex items-center gap-6 text-2xl">
-              <button onClick={playPrevious} className="hover:scale-110 transition" aria-label="Previous">
+              <button
+                onClick={playPrevious}
+                className="hover:scale-110 transition"
+                aria-label="Previous"
+              >
                 <FaStepBackward />
               </button>
               <button
@@ -185,7 +203,11 @@ export default function App() {
               >
                 {isPlaying ? <FaPause /> : <FaPlay />}
               </button>
-              <button onClick={playNext} className="hover:scale-110 transition" aria-label="Next">
+              <button
+                onClick={playNext}
+                className="hover:scale-110 transition"
+                aria-label="Next"
+              >
                 <FaStepForward />
               </button>
             </div>
