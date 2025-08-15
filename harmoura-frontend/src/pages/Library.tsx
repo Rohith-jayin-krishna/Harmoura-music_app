@@ -28,6 +28,7 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
   const [allSongs, setAllSongs] = useState<Song[]>([]);
   const [openPlaylist, setOpenPlaylist] = useState<Playlist | null>(null);
   const [showCentralLibrary, setShowCentralLibrary] = useState(false);
+  const [playlistSearch, setPlaylistSearch] = useState(""); // 🎯 new search state
 
   const token =
     localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
@@ -103,6 +104,17 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
     }
   };
 
+  const handleDeletePlaylist = async (playlistId: number) => {
+    try {
+      await axios.delete(`${baseURL}/api/users/playlists/delete/${playlistId}/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPlaylists(playlists.filter(p => p.id !== playlistId));
+    } catch (err) {
+      console.error("Failed to delete playlist:", err);
+    }
+  };
+
   if (loading) return <p>Loading your library...</p>;
 
   // --- Main Library View ---
@@ -130,10 +142,25 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
           {playlists.map((playlist) => (
             <div
               key={playlist.id}
-              className="border p-4 rounded-lg shadow cursor-pointer hover:shadow-lg transition"
-              onClick={() => setOpenPlaylist(playlist)}
+              className="border p-4 rounded-lg shadow flex justify-between items-center cursor-pointer hover:shadow-lg transition"
             >
-              <h2 className="text-lg font-semibold">{playlist.name}</h2>
+              <h2
+                className="text-lg font-semibold"
+                onClick={() => setOpenPlaylist(playlist)}
+              >
+                {playlist.name}
+              </h2>
+
+              {/* Professional Delete Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeletePlaylist(playlist.id);
+                }}
+                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
+              >
+                Delete
+              </button>
             </div>
           ))}
         </div>
@@ -142,6 +169,30 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
   }
 
   // --- Open Playlist View ---
+  // 🎯 Smart search logic (case insensitive + simple typo tolerance)
+  const searchQuery = playlistSearch.trim().toLowerCase();
+  const filteredSongs = openPlaylist.songs.filter((song) => {
+    if (!searchQuery) return true;
+    const title = song.title.toLowerCase();
+    const artist = song.artist.toLowerCase();
+    // Simple typo-tolerant: check if all characters exist in order
+    let ti = 0, qi = 0;
+    while (ti < title.length && qi < searchQuery.length) {
+      if (title[ti] === searchQuery[qi]) qi++;
+      ti++;
+    }
+    if (qi === searchQuery.length) return true;
+
+    // Check artist too
+    ti = 0;
+    qi = 0;
+    while (ti < artist.length && qi < searchQuery.length) {
+      if (artist[ti] === searchQuery[qi]) qi++;
+      ti++;
+    }
+    return qi === searchQuery.length;
+  });
+
   return (
     <div>
       <button
@@ -161,8 +212,19 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
         </button>
       </div>
 
+      {/* Playlist Search Bar */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search songs in this playlist..."
+          value={playlistSearch}
+          onChange={(e) => setPlaylistSearch(e.target.value)}
+          className="px-4 py-2 border rounded-lg w-full mb-2"
+        />
+      </div>
+
       <div className="flex flex-col gap-2 mb-4">
-        {openPlaylist.songs.map((song) => {
+        {filteredSongs.map((song) => {
           const isPlayingSong = currentSong && currentSong.id === song.id;
           return (
             <div
@@ -176,7 +238,7 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => onPlay(song, openPlaylist.songs)} // ✅ Pass playlist directly
+                  onClick={() => onPlay(song, openPlaylist.songs)}
                   className="bg-[#f9243d] text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
                 >
                   <FaPlay />

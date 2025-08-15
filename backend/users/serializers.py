@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Song, Playlist
+from .models import Song, Playlist, UserProfile
 
-# User registration serializer
+# ---------------- Existing serializers (unchanged) ---------------- #
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
@@ -16,17 +17,17 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=validated_data["email"],
             password=validated_data["password"]
         )
+        # Create empty profile automatically
+        UserProfile.objects.create(user=user)
         return user
 
 
-# Song serializer
 class SongSerializer(serializers.ModelSerializer):
     class Meta:
         model = Song
         fields = ("id", "title", "artist", "src")
 
 
-# Playlist serializer with optional song IDs for creation/updating
 class PlaylistSerializer(serializers.ModelSerializer):
     songs = SongSerializer(many=True, read_only=True)
     song_ids = serializers.PrimaryKeyRelatedField(
@@ -50,3 +51,23 @@ class PlaylistSerializer(serializers.ModelSerializer):
         if song_ids is not None:
             instance.songs.set(song_ids)
         return instance
+
+
+# ---------------- User Profile Serializer ---------------- #
+class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    profile_picture_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserProfile
+        fields = ("username", "email", "profile_picture", "profile_picture_url")
+
+    def get_profile_picture_url(self, obj):
+        request = self.context.get("request")
+        if obj.profile_picture:
+            url = obj.profile_picture.url
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        return None

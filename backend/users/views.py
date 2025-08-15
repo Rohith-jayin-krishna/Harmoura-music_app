@@ -189,17 +189,65 @@ def admin_delete_song(request, song_id):
         return Response({"message": "Song deleted successfully"})
     except Song.DoesNotExist:
         return Response({"error": "Song not found"}, status=status.HTTP_404_NOT_FOUND)
-  # ---------------- User Profile ---------------- #
-@api_view(["GET"])
+# ---------------- User Profile ---------------- #
+import os
+from django.conf import settings
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import UserProfile
+
+@api_view(["GET", "PUT"])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
 def user_profile(request):
     """
-    Fetch the profile of the currently logged-in user.
+    Fetch or update the profile of the currently logged-in user.
     """
     user = request.user
-    return Response({
-        "username": user.username,
-        "email": user.email,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-    })
+    # Ensure profile exists
+    profile, created = UserProfile.objects.get_or_create(user=user)
+
+    if request.method == "GET":
+        profile_url = profile.profile_picture.url if profile.profile_picture else ""
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name or "",
+            "last_name": user.last_name or "",
+            "profile_picture": profile_url,
+            "profile_exists": bool(profile.profile_picture)
+        })
+
+    elif request.method == "PUT":
+        first_name = request.data.get("first_name", user.first_name)
+        last_name = request.data.get("last_name", user.last_name)
+
+        user.first_name = first_name
+        user.last_name = last_name
+        user.save()
+
+        # Only update profile picture if a new file is uploaded
+        if "profile_picture" in request.FILES:
+            # Delete old file if exists
+            if profile.profile_picture:
+                old_file_path = profile.profile_picture.path
+                if os.path.isfile(old_file_path):
+                    os.remove(old_file_path)
+
+            # Save new profile picture
+            profile.profile_picture = request.FILES["profile_picture"]
+            profile.save()
+
+        profile_url = profile.profile_picture.url if profile.profile_picture else ""
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name or "",
+            "last_name": user.last_name or "",
+            "profile_picture": profile_url,
+            "profile_exists": bool(profile.profile_picture)
+        })
