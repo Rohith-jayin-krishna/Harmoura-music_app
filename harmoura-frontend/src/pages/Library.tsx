@@ -9,6 +9,7 @@ export interface Song {
   title: string;
   artist: string;
   src: string;
+  cover_url?: string; // cover from backend
 }
 
 interface Playlist {
@@ -29,25 +30,37 @@ export default function Library() {
   const token =
     localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
   const baseURL = "http://127.0.0.1:8000";
+
   const toFullUrl = (u?: string) => (!u ? "" : u.startsWith("http") ? u : `${baseURL}${u}`);
 
-  // ✅ Get play functions and currentSong from PlayerContext
   const { handlePlaySong, currentSong } = usePlayer();
 
+  // Fetch playlists and songs
   useEffect(() => {
     const fetchData = async () => {
       try {
         const playlistRes = await axios.get(`${baseURL}/api/users/playlists/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setPlaylists(playlistRes.data);
+
+        // Normalize playlist songs
+        const normalizedPlaylists = playlistRes.data.map((playlist: Playlist) => ({
+          ...playlist,
+          songs: playlist.songs.map((s: Song) => ({
+            ...s,
+            src: toFullUrl(s.src || s.file || s.audio || ""),
+            cover_url: s.cover_url ? toFullUrl(s.cover_url) : undefined,
+          })),
+        }));
+        setPlaylists(normalizedPlaylists);
 
         const songsRes = await axios.get(`${baseURL}/api/users/songs/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const normalizedSongs = songsRes.data.map((s: any) => ({
+        const normalizedSongs = songsRes.data.map((s: Song) => ({
           ...s,
           src: toFullUrl(s.src || s.file || s.audio || ""),
+          cover_url: s.cover_url ? toFullUrl(s.cover_url) : undefined,
         }));
         setAllSongs(normalizedSongs);
       } catch (err) {
@@ -56,6 +69,7 @@ export default function Library() {
         setLoading(false);
       }
     };
+
     fetchData();
   }, [token]);
 
@@ -81,8 +95,15 @@ export default function Library() {
         { playlist_id: playlistId, song_id: songId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setOpenPlaylist(res.data);
-      setPlaylists(playlists.map(p => (p.id === playlistId ? res.data : p)));
+      const updatedPlaylist = {
+        ...res.data,
+        songs: res.data.songs.map((s: Song) => ({
+          ...s,
+          cover_url: s.cover_url ? toFullUrl(s.cover_url) : undefined,
+        })),
+      };
+      setOpenPlaylist(updatedPlaylist);
+      setPlaylists(playlists.map(p => (p.id === playlistId ? updatedPlaylist : p)));
     } catch (err) {
       console.error("Failed to add song:", err);
     }
@@ -95,8 +116,15 @@ export default function Library() {
         { playlist_id: playlistId, song_id: songId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setOpenPlaylist(res.data);
-      setPlaylists(playlists.map(p => (p.id === playlistId ? res.data : p)));
+      const updatedPlaylist = {
+        ...res.data,
+        songs: res.data.songs.map((s: Song) => ({
+          ...s,
+          cover_url: s.cover_url ? toFullUrl(s.cover_url) : undefined,
+        })),
+      };
+      setOpenPlaylist(updatedPlaylist);
+      setPlaylists(playlists.map(p => (p.id === playlistId ? updatedPlaylist : p)));
     } catch (err) {
       console.error("Failed to remove song:", err);
     }
@@ -119,6 +147,7 @@ export default function Library() {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-4">Your Library</h1>
+
         <div className="mb-6 flex gap-2">
           <input
             type="text"
@@ -202,6 +231,7 @@ export default function Library() {
         />
       </div>
 
+      {/* Playlist Songs */}
       <div className="flex flex-col gap-2 mb-4">
         {filteredSongs.map((song) => {
           const isPlayingSong = currentSong && currentSong.id === song.id;
@@ -211,12 +241,20 @@ export default function Library() {
               className={`flex justify-between items-center p-3 rounded-lg shadow hover:shadow-md transition
                 ${isPlayingSong ? "bg-gray-200" : "bg-white"}`}
             >
-              <div>
-                <p className="font-semibold">{song.title}</p>
-                <p className="text-sm text-gray-500">{song.artist}</p>
+              <div className="flex items-center gap-3">
+                <img
+                  src={song.cover_url || "/default_cover.png"}
+                  alt={song.title}
+                  className="w-10 h-10 rounded-2xl object-cover flex-shrink-0"
+                  loading="lazy"
+                />
+                <div>
+                  <p className="font-semibold">{song.title}</p>
+                  <p className="text-sm text-gray-500">{song.artist}</p>
+                </div>
               </div>
+
               <div className="flex items-center gap-2">
-                {/* ✅ Play using PlayerContext */}
                 <button
                   onClick={() => handlePlaySong(song, openPlaylist.songs)}
                   className="bg-[#f9243d] text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
@@ -242,6 +280,7 @@ export default function Library() {
         })}
       </div>
 
+      {/* Central Library Browse */}
       {showCentralLibrary && (
         <div className="border-t pt-4 flex flex-wrap gap-2">
           {allSongs
@@ -250,9 +289,15 @@ export default function Library() {
               <button
                 key={song.id}
                 onClick={() => handleAddSong(openPlaylist.id, song.id)}
-                className="bg-gray-200 px-3 py-1 rounded-lg hover:bg-gray-300"
+                className="flex items-center gap-2 bg-gray-200 px-3 py-1 rounded-lg hover:bg-gray-300"
               >
-                {song.title} - {song.artist}
+                <img
+                  src={song.cover_url || "/default_cover.png"}
+                  alt={song.title}
+                  className="w-8 h-8 rounded-2xl object-cover flex-shrink-0"
+                  loading="lazy"
+                />
+                <span>{song.title} - {song.artist}</span>
               </button>
             ))}
         </div>
