@@ -4,7 +4,7 @@ from .models import Song, Playlist
 
 @admin.register(Song)
 class SongAdmin(admin.ModelAdmin):
-    list_display = ('title', 'artist', 'src')
+    list_display = ('title', 'artist', 'src', 'cover')  # ✅ added cover to display
     # Optional: add search or filter
     search_fields = ('title', 'artist')
 

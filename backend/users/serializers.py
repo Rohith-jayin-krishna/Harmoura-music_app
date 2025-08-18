@@ -22,10 +22,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
+# ---------------- Song Serializer with cover ---------------- #
 class SongSerializer(serializers.ModelSerializer):
+    cover_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Song
-        fields = ("id", "title", "artist", "src")
+        fields = ("id", "title", "artist", "src", "cover_url")
+
+    def get_cover_url(self, obj):
+        request = self.context.get("request")
+        if obj.cover:
+            url = obj.cover.url
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        return None
 
 
 class PlaylistSerializer(serializers.ModelSerializer):
