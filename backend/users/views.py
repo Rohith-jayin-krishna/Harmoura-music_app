@@ -251,3 +251,10 @@ def user_profile(request):
             "profile_picture": profile_url,
             "profile_exists": bool(profile.profile_picture)
         })
+    # Public endpoint for all songs (no auth required)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def public_songs(request):
+    songs = Song.objects.all()
+    serializer = SongSerializer(songs, many=True)
+    return Response(serializer.data)
