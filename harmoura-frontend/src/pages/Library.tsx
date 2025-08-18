@@ -1,7 +1,8 @@
-// --- Library.tsx (updated)
+// --- Library.tsx (PlayerContext fully integrated)
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaPlay, FaEllipsisV } from "react-icons/fa";
+import { usePlayer } from "../context/PlayerContext"; // ✅ use context
 
 export interface Song {
   id: number;
@@ -16,25 +17,22 @@ interface Playlist {
   songs: Song[];
 }
 
-interface LibraryProps {
-  onPlay: (song: Song, playlist?: Song[]) => void;
-  currentSong: Song | null;
-}
-
-export default function Library({ onPlay, currentSong }: LibraryProps) {
+export default function Library() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [allSongs, setAllSongs] = useState<Song[]>([]);
   const [openPlaylist, setOpenPlaylist] = useState<Playlist | null>(null);
   const [showCentralLibrary, setShowCentralLibrary] = useState(false);
-  const [playlistSearch, setPlaylistSearch] = useState(""); // 🎯 new search state
+  const [playlistSearch, setPlaylistSearch] = useState("");
 
   const token =
     localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
   const baseURL = "http://127.0.0.1:8000";
-
   const toFullUrl = (u?: string) => (!u ? "" : u.startsWith("http") ? u : `${baseURL}${u}`);
+
+  // ✅ Get play functions and currentSong from PlayerContext
+  const { handlePlaySong, currentSong } = usePlayer();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -117,7 +115,6 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
 
   if (loading) return <p>Loading your library...</p>;
 
-  // --- Main Library View ---
   if (!openPlaylist) {
     return (
       <div>
@@ -151,7 +148,6 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
                 {playlist.name}
               </h2>
 
-              {/* Professional Delete Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -168,29 +164,13 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
     );
   }
 
-  // --- Open Playlist View ---
-  // 🎯 Smart search logic (case insensitive + simple typo tolerance)
   const searchQuery = playlistSearch.trim().toLowerCase();
   const filteredSongs = openPlaylist.songs.filter((song) => {
     if (!searchQuery) return true;
-    const title = song.title.toLowerCase();
-    const artist = song.artist.toLowerCase();
-    // Simple typo-tolerant: check if all characters exist in order
-    let ti = 0, qi = 0;
-    while (ti < title.length && qi < searchQuery.length) {
-      if (title[ti] === searchQuery[qi]) qi++;
-      ti++;
-    }
-    if (qi === searchQuery.length) return true;
-
-    // Check artist too
-    ti = 0;
-    qi = 0;
-    while (ti < artist.length && qi < searchQuery.length) {
-      if (artist[ti] === searchQuery[qi]) qi++;
-      ti++;
-    }
-    return qi === searchQuery.length;
+    return (
+      song.title.toLowerCase().includes(searchQuery) ||
+      song.artist.toLowerCase().includes(searchQuery)
+    );
   });
 
   return (
@@ -212,7 +192,6 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
         </button>
       </div>
 
-      {/* Playlist Search Bar */}
       <div className="mb-4">
         <input
           type="text"
@@ -237,8 +216,9 @@ export default function Library({ onPlay, currentSong }: LibraryProps) {
                 <p className="text-sm text-gray-500">{song.artist}</p>
               </div>
               <div className="flex items-center gap-2">
+                {/* ✅ Play using PlayerContext */}
                 <button
-                  onClick={() => onPlay(song, openPlaylist.songs)}
+                  onClick={() => handlePlaySong(song, openPlaylist.songs)}
                   className="bg-[#f9243d] text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
                 >
                   <FaPlay />

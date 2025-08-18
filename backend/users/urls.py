@@ -4,7 +4,9 @@ from .views import (
     create_playlist, add_song_to_playlist,
     all_songs, remove_song_from_playlist, delete_playlist,
     # Updated
-    user_profile
+    user_profile,
+    # New public songs view
+    public_songs
 )
 
 urlpatterns = [
@@ -19,4 +21,7 @@ urlpatterns = [
 
     # Profile endpoint
     path("profile/", user_profile, name="user_profile"),
+
+    # Public songs endpoint (no authentication required)
+    path("songs/public/", public_songs, name="public_songs"),
 ]
