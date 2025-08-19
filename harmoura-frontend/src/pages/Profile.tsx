@@ -35,44 +35,31 @@ export default function Profile() {
 
   const BASE_URL = "http://127.0.0.1:8000";
 
-  // Fetch user profile and stats
-  const fetchProfile = async () => {
-    if (!token) return;
-
-    // Load cached stats first
-    const cachedEmotionStats = localStorage.getItem("emotionStats");
-    const cachedArtistStats = localStorage.getItem("artistStats");
-
-    if (cachedEmotionStats) setEmotionStats(JSON.parse(cachedEmotionStats));
-    if (cachedArtistStats) setArtistStats(JSON.parse(cachedArtistStats));
-
-    try {
-      const res = await axios.get(`${BASE_URL}/api/users/profile/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      setFirstName(res.data.first_name || "");
-      setUsername(res.data.username || "");
-      setEmail(res.data.email || "");
-
-      const picUrl = res.data.profile_picture
-        ? `${BASE_URL}${res.data.profile_picture}`
-        : null;
-      setProfilePictureUrl(picUrl);
-
-      setEmotionStats(res.data.emotion_stats || emotionStats);
-      setArtistStats(res.data.artist_stats || artistStats);
-
-      // Cache the stats for next visit
-      localStorage.setItem("emotionStats", JSON.stringify(res.data.emotion_stats || emotionStats));
-      localStorage.setItem("artistStats", JSON.stringify(res.data.artist_stats || artistStats));
-    } catch (err) {
-      console.error("Failed to fetch profile:", err);
-      errorToast("Failed to load profile.");
-    }
-  };
-
   useEffect(() => {
+    const fetchProfile = async () => {
+      if (!token) return;
+      try {
+        const res = await axios.get(`${BASE_URL}/api/users/profile/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setFirstName(res.data.first_name || "");
+        setUsername(res.data.username || "");
+        setEmail(res.data.email || "");
+
+        const picUrl = res.data.profile_picture
+          ? `${BASE_URL}${res.data.profile_picture}`
+          : null;
+        setProfilePictureUrl(picUrl);
+
+        setEmotionStats(res.data.emotion_stats || emotionStats);
+        setArtistStats(res.data.artist_stats || artistStats);
+      } catch (err) {
+        console.error("Failed to fetch profile:", err);
+        errorToast("Failed to load profile.");
+      }
+    };
+
     fetchProfile();
   }, [token]);
 
@@ -84,7 +71,6 @@ export default function Profile() {
 
   const handleSave = async () => {
     if (!token) return;
-
     const formData = new FormData();
     formData.append("first_name", firstName);
     if (profilePicture) formData.append("profile_picture", profilePicture);
@@ -105,12 +91,6 @@ export default function Profile() {
       setProfilePictureUrl(picUrl);
       setEditing(false);
       successToast("Profile updated successfully!");
-      setEmotionStats(res.data.emotion_stats || emotionStats);
-      setArtistStats(res.data.artist_stats || artistStats);
-
-      // Update cache after save
-      localStorage.setItem("emotionStats", JSON.stringify(res.data.emotion_stats || emotionStats));
-      localStorage.setItem("artistStats", JSON.stringify(res.data.artist_stats || artistStats));
     } catch (err) {
       console.error("Failed to update profile:", err);
       errorToast("Failed to update profile.");
@@ -120,7 +100,6 @@ export default function Profile() {
   const buttonClass =
     "px-4 py-2 rounded text-white font-medium shadow hover:shadow-lg transition";
 
-  // Pie chart for emotions
   const emotionLabels: Emotion[] = ["Happiness", "Sadness", "Calmness", "Excitement", "Love"];
   const emotionData = emotionLabels.map((e) => emotionStats[e] || 0);
 
@@ -129,13 +108,7 @@ export default function Profile() {
     datasets: [
       {
         data: emotionData,
-        backgroundColor: [
-          "#FFC857",
-          "#2A4D69",
-          "#88B04B",
-          "#FF8C42",
-          "#E63946",
-        ],
+        backgroundColor: ["#FFC857", "#2A4D69", "#88B04B", "#FF8C42", "#E63946"],
         borderColor: "#ffffff",
         borderWidth: 2,
       },
@@ -145,25 +118,8 @@ export default function Profile() {
   const pieOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    animations: {
-      animateRotate: true,
-      animateScale: true,
-      duration: 1000,
-    },
     plugins: {
-      legend: {
-        position: "bottom" as const,
-        labels: { font: { size: 12, weight: "bold" as const }, color: "#333" },
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context: any) {
-            const label = context.label || "";
-            const value = context.raw || 0;
-            return `${label}: ${value} play${value === 1 ? "" : "s"}`;
-          },
-        },
-      },
+      legend: { position: "bottom" as const },
     },
   };
 
@@ -176,19 +132,24 @@ export default function Profile() {
       <h1 className="text-3xl font-bold mb-6 text-[#f9243d]">Your Profile</h1>
 
       {/* User Info */}
-      <div className="bg-white shadow-lg rounded-lg p-5 mb-6 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center bg-gray-200 text-gray-500 font-bold text-lg">
+      <div className="bg-white shadow-lg rounded-lg p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
+        {/* Profile Picture */}
+        <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center bg-gray-200 text-gray-500 font-bold text-xl mx-auto sm:mx-0">
           {profilePictureUrl ? (
             <img src={profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
           ) : (
             username ? username.charAt(0).toUpperCase() : "U"
           )}
         </div>
-        <div className="flex flex-col gap-1">
+
+        {/* Name & Email */}
+        <div className="flex flex-col gap-1 text-center sm:text-left">
           <h2 className="text-lg font-semibold">{firstName || username || "User"}</h2>
           <p className="text-gray-500 text-sm">{email || "user@example.com"}</p>
         </div>
-        <div className="ml-auto">
+
+        {/* Edit Button */}
+        <div className="sm:ml-auto text-center sm:text-right">
           <button
             className={`${buttonClass} bg-[#f9243d] hover:bg-red-600 text-sm px-3 py-1`}
             onClick={() => setEditing(!editing)}
@@ -225,7 +186,6 @@ export default function Profile() {
       {/* Emotion Pie Chart */}
       <div className="bg-white shadow-lg rounded-lg p-5 mb-6">
         <h2 className="text-lg font-semibold mb-2 text-gray-800">Listening Emotions</h2>
-        <p className="text-gray-600 text-xs mb-3">Most played emotions across songs.</p>
         <div className="h-56">
           <Pie data={pieData} options={pieOptions} />
         </div>
@@ -234,12 +194,14 @@ export default function Profile() {
       {/* Top Artists */}
       <div className="bg-white shadow-lg rounded-lg p-5">
         <h2 className="text-lg font-semibold mb-2 text-gray-800">Top Artists</h2>
-        <p className="text-gray-600 text-xs mb-2">Most listened-to artists.</p>
         <ul className="list-disc list-inside space-y-1 text-gray-700 text-sm">
           {topArtists.length ? (
             topArtists.map(([artist, count]) => (
               <li key={artist}>
-                {artist} <span className="text-gray-500">({count} {count === 1 ? "play" : "plays"})</span>
+                {artist}{" "}
+                <span className="text-gray-500">
+                  ({count} {count === 1 ? "play" : "plays"})
+                </span>
               </li>
             ))
           ) : (

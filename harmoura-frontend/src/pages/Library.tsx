@@ -426,23 +426,25 @@ export default function Library() {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Your Library</h1>
+    <div className="px-3 sm:px-4 md:px-6">
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 text-center md:text-left">
+        Your Library
+      </h1>
 
       {/* Create Playlist Button / Input */}
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex flex-col sm:flex-row gap-2">
         {creatingPlaylist ? (
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
             <input
               type="text"
               placeholder="Playlist Name"
               value={newPlaylistName}
               onChange={(e) => setNewPlaylistName(e.target.value)}
-              className="px-4 py-2 border rounded-lg flex-grow"
+              className="px-3 py-2 border rounded-lg flex-grow text-sm sm:text-base"
             />
             <button
               onClick={handleCreatePlaylist}
-              className="bg-[#f9243d] text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+              className="bg-[#f9243d] text-white px-3 py-2 rounded-lg hover:bg-red-600 transition text-sm sm:text-base"
             >
               Save
             </button>
@@ -451,7 +453,7 @@ export default function Library() {
                 setCreatingPlaylist(false);
                 setNewPlaylistName("");
               }}
-              className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
+              className="bg-gray-300 px-3 py-2 rounded-lg hover:bg-gray-400 transition text-sm sm:text-base"
             >
               Cancel
             </button>
@@ -459,7 +461,7 @@ export default function Library() {
         ) : (
           <button
             onClick={() => setCreatingPlaylist(true)}
-            className="bg-[#f9243d] text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+            className="bg-[#f9243d] text-white px-4 py-2 rounded-lg hover:bg-red-600 transition w-full sm:w-auto text-sm sm:text-base"
           >
             Create Playlist
           </button>
@@ -467,21 +469,23 @@ export default function Library() {
       </div>
 
       {/* Playlist Tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
         {playlists.map((playlist) => {
           const firstLetter = playlist.name.charAt(0).toUpperCase();
           return (
             <div
               key={playlist.id}
               onClick={() => setOpenPlaylist(playlist)}
-              className="relative group cursor-pointer rounded-lg overflow-hidden shadow-sm hover:shadow-md transition transform hover:-translate-y-1 flex flex-col items-center justify-center p-4"
+              className="relative group cursor-pointer rounded-lg overflow-hidden shadow-sm hover:shadow-md transition transform hover:-translate-y-1 flex flex-col items-center justify-center p-3 sm:p-4"
               style={{ aspectRatio: "1 / 1", backgroundColor: "#f9f9f9" }}
             >
               {/* First Letter */}
-              <span className="text-gray-800 text-4xl font-bold select-none">{firstLetter}</span>
+              <span className="text-gray-800 text-2xl sm:text-3xl md:text-4xl font-bold select-none">
+                {firstLetter}
+              </span>
 
               {/* Playlist Name */}
-              <span className="mt-2 text-gray-600 text-sm text-center truncate w-full px-1">
+              <span className="mt-2 text-gray-600 text-xs sm:text-sm text-center truncate w-full px-1">
                 {playlist.name}
               </span>
 
@@ -491,7 +495,7 @@ export default function Library() {
                   e.stopPropagation();
                   handleDeletePlaylist(playlist.id);
                 }}
-                className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition"
+                className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition text-xs sm:text-sm"
               >
                 Delete
               </button>

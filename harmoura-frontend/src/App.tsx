@@ -55,8 +55,12 @@ function App() {
 
   // Auto Sign-In
   useEffect(() => {
-    const accessToken = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
-    const userEmail = localStorage.getItem("userEmail") || sessionStorage.getItem("userEmail");
+    const accessToken =
+      localStorage.getItem("accessToken") ||
+      sessionStorage.getItem("accessToken");
+    const userEmail =
+      localStorage.getItem("userEmail") ||
+      sessionStorage.getItem("userEmail");
     if (accessToken && userEmail) setUser(userEmail);
   }, []);
 
@@ -108,16 +112,19 @@ function App() {
       {/* Toast Container */}
       <ToastContainer />
 
-      {/* Enhanced scroll with smooth behavior */}
       <div className="min-h-screen flex flex-col overflow-y-auto scroll-smooth custom-scrollbar">
         <Navbar user={user} onSignOut={handleSignOut} />
 
-        <main className="flex-grow bg-gray-100 p-6">
+        {/* Page Content */}
+        <main className="flex-grow bg-gray-100 p-6 pb-32">
+          {/* pb-32 ensures content doesn't get hidden under the fixed music player */}
           <Routes>
             <Route path="/" element={<Home />} />
             <Route
               path="/signin"
-              element={user ? <Navigate to="/" /> : <SignIn onSignIn={handleSignIn} />}
+              element={
+                user ? <Navigate to="/" /> : <SignIn onSignIn={handleSignIn} />
+              }
             />
             <Route path="/register" element={<Register />} />
             <Route
@@ -132,18 +139,21 @@ function App() {
           </Routes>
         </main>
 
-        {/* Always render MusicPlayer if user exists and currentSong is set */}
+        {/* Fixed MusicPlayer */}
         {user && currentSong && (
-          <MusicPlayer
-            song={currentSong}
-            onClose={() => handlePlaySong(null)}
-            onNext={playNext}
-            onPrev={playPrevious}
-            isPlayingExternal={isPlaying}
-            onTogglePlay={togglePlayPause}
-          />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-lg">
+            <MusicPlayer
+              song={currentSong}
+              onClose={() => handlePlaySong(null)}
+              onNext={playNext}
+              onPrev={playPrevious}
+              isPlayingExternal={isPlaying}
+              onTogglePlay={togglePlayPause}
+            />
+          </div>
         )}
 
+        {/* Footer */}
         <footer className="bg-gray-900 text-white text-center p-4">
           &copy; {new Date().getFullYear()} Harmoura. All rights reserved.
         </footer>
