@@ -310,6 +310,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import PlaylistView from "../components/PlaylistView";
 import { usePlayer } from "../context/PlayerContext";
+import { successToast, errorToast } from "../utils/toasts"; // ✅ import toasts
 
 export interface Song {
   id: number;
@@ -369,6 +370,7 @@ export default function Library() {
         setAllSongs(normalizedSongs);
       } catch (err) {
         console.error("Failed to fetch data:", err);
+        errorToast("Failed to load library data.");
       } finally {
         setLoading(false);
       }
@@ -389,8 +391,10 @@ export default function Library() {
       setPlaylists([...playlists, res.data]);
       setNewPlaylistName("");
       setCreatingPlaylist(false);
+      successToast("Playlist created successfully!"); // ✅ toast
     } catch (err) {
       console.error("Failed to create playlist:", err);
+      errorToast("Failed to create playlist."); // ✅ toast
     }
   };
 
@@ -400,8 +404,10 @@ export default function Library() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPlaylists(playlists.filter(p => p.id !== playlistId));
+      successToast("Playlist deleted successfully!"); // ✅ toast
     } catch (err) {
       console.error("Failed to delete playlist:", err);
+      errorToast("Failed to delete playlist."); // ✅ toast
     }
   };
 

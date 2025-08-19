@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { successToast, errorToast } from "../utils/toasts";
 
 interface SignInProps {
   onSignIn: (email: string, rememberMe: boolean) => void; // ✅ two arguments
@@ -25,7 +26,7 @@ export default function SignIn({ onSignIn }: SignInProps) {
       });
 
       if (response.status === 200) {
-        console.log("Login successful:", response.data);
+        successToast("Login successful!");
         onSignIn(email, rememberMe); // ✅ pass both arguments
 
         // store tokens based on rememberMe
@@ -41,10 +42,19 @@ export default function SignIn({ onSignIn }: SignInProps) {
       }
     } catch (error: any) {
       console.error("Login failed:", error.response?.data || error.message);
+
       if (error.response?.data) {
         setErrors(error.response.data);
+        errorToast(
+          Object.entries(error.response.data)
+            .map(([key, value]: any) =>
+              Array.isArray(value) ? value.join(", ") : value
+            )
+            .join(" | ")
+        );
       } else {
         setErrors({ general: error.message });
+        errorToast(error.message);
       }
     }
   };

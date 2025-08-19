@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+/* Apply smooth scrolling for the entire app */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Apply custom scrollbar globally via a utility class */
+.custom-scrollbar {
+  overflow-y: auto;
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #f9243d #f1f1f1;
+}
+
+/* Webkit browsers (Chrome, Edge, Safari) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #f9243d;
+  border-radius: 8px;
+  transition: background 0.3s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #c01f33;
+}

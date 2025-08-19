@@ -1,4 +1,3 @@
-// src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -12,6 +11,8 @@ import Register from "./pages/Register";
 import MusicPlayer from "./components/MusicPlayer";
 
 import { PlayerProvider, usePlayer } from "./context/PlayerContext";
+import { ToastContainer } from "react-toastify";
+import { errorToast } from "./utils/toasts";
 
 export default function AppWrapper() {
   return (
@@ -40,6 +41,42 @@ function App() {
     playPrevious,
   } = usePlayer();
 
+  const handleSignOut = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    setUser(null);
+  };
+
+  const handleSignIn = (email: string, rememberMe: boolean) => {
+    setUser(email);
+    if (rememberMe) localStorage.setItem("userEmail", email);
+    else sessionStorage.setItem("userEmail", email);
+  };
+
+  // Auto Sign-In
+  useEffect(() => {
+    const accessToken = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+    const userEmail = localStorage.getItem("userEmail") || sessionStorage.getItem("userEmail");
+    if (accessToken && userEmail) setUser(userEmail);
+  }, []);
+
+  // Global Axios interceptor for token expiry
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          handleSignOut();
+          errorToast("Session timed out. Please login again.");
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, []);
+
   // Fetch central library songs
   const [songs, setSongs] = useState<any[]>([]);
   useEffect(() => {
@@ -54,35 +91,25 @@ function App() {
           src: toFullUrl(s.src || s.file || s.audio || ""),
         }));
         setSongs(normalized);
-      } catch (err) {
-        console.error("Failed to fetch central library songs:", err);
+      } catch (err: any) {
+        if (err.response?.status === 401) {
+          handleSignOut();
+          errorToast("Session timed out. Please login again.");
+        } else {
+          console.error("Failed to fetch central library songs:", err);
+        }
       }
     };
     fetchSongs();
   }, [token]);
 
-  // Auto Sign-In
-  useEffect(() => {
-    const accessToken = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
-    const userEmail = localStorage.getItem("userEmail") || sessionStorage.getItem("userEmail");
-    if (accessToken && userEmail) setUser(userEmail);
-  }, []);
-
-  const handleSignIn = (email: string, rememberMe: boolean) => {
-    setUser(email);
-    if (rememberMe) localStorage.setItem("userEmail", email);
-    else sessionStorage.setItem("userEmail", email);
-  };
-
-  const handleSignOut = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    setUser(null);
-  };
-
   return (
     <Router>
-      <div className="min-h-screen flex flex-col">
+      {/* Toast Container */}
+      <ToastContainer />
+
+      {/* Enhanced scroll with smooth behavior */}
+      <div className="min-h-screen flex flex-col overflow-y-auto scroll-smooth custom-scrollbar">
         <Navbar user={user} onSignOut={handleSignOut} />
 
         <main className="flex-grow bg-gray-100 p-6">
@@ -109,7 +136,7 @@ function App() {
         {user && currentSong && (
           <MusicPlayer
             song={currentSong}
-            onClose={() => handlePlaySong(null)} // ✅ stops playback safely
+            onClose={() => handlePlaySong(null)}
             onNext={playNext}
             onPrev={playPrevious}
             isPlayingExternal={isPlaying}
