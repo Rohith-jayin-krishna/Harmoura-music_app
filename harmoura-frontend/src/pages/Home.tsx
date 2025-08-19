@@ -54,6 +54,16 @@ export default function Home() {
     setFilteredSongs(results);
   }, [searchTerm, songs]);
 
+  // Function to check if user is signed in
+  const playSongIfSignedIn = (song: Song) => {
+    const token = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+    if (!token) {
+      alert("Please sign in to play songs."); // prompt
+      return;
+    }
+    handlePlaySong(song, songs); // play if signed in
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-4">Central Library</h1>
@@ -75,7 +85,7 @@ export default function Home() {
               key={song.id}
               className={`relative bg-white shadow-md rounded-3xl overflow-hidden cursor-pointer hover:shadow-xl transform hover:scale-105 transition-all duration-300 group
                 ${isPlayingSong ? "ring-2 ring-[#f9243d]" : ""}`}
-              onClick={() => handlePlaySong(song, songs)} // ✅ play via context
+              onClick={() => playSongIfSignedIn(song)} // ✅ updated
             >
               <div className="w-full h-48 bg-gray-200 relative">
                 {song.cover_url ? (
