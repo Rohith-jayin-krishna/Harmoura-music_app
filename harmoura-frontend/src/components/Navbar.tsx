@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
+import { successToast } from "../utils/toasts";   // ✅ success / error toasts
+import { confirmToast } from "../utils/toastUtils"; // ✅ confirmation toast
 
 interface NavbarProps {
   user: string | null;
@@ -59,12 +61,13 @@ export default function Navbar({ user, onSignOut }: NavbarProps) {
     { name: "Profile", path: "/profile", protected: true },
   ];
 
+  // 🔴 Updated: uses confirmToast instead of direct action
   const handleSignOut = () => {
-    const confirmSignOut = window.confirm("Are you sure you want to sign out?");
-    if (confirmSignOut) {
+    confirmToast("Are you sure you want to sign out?", () => {
       onSignOut();
+      successToast("Signed out successfully 👋");
       navigate("/signin");
-    }
+    });
   };
 
   return (
@@ -127,7 +130,7 @@ export default function Navbar({ user, onSignOut }: NavbarProps) {
               className="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg text-sm z-50
                          origin-top-right transform transition duration-150 ease-out"
             >
-              {/* Profile & Settings: theme-consistent soft hover */}
+              {/* Profile & Settings */}
               <Link
                 to="/profile"
                 className="block px-4 py-2 text-gray-700 hover:bg-[#fdecee] hover:text-[#f9243d] transition-colors"
@@ -145,7 +148,7 @@ export default function Navbar({ user, onSignOut }: NavbarProps) {
 
               <hr className="my-1 border-gray-200" />
 
-              {/* Sign Out: strictly subtle red */}
+              {/* Sign Out */}
               <button
                 onClick={handleSignOut}
                 className="

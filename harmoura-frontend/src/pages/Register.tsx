@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
+import { successToast, errorToast } from "../utils/toasts";
 
 export default function Register() {
   const [username, setUsername] = useState("");
@@ -23,7 +24,7 @@ export default function Register() {
       });
 
       if (response.status === 201 || response.status === 200) {
-        console.log("Registration successful:", response.data);
+        successToast("Registration successful! Please login.");
         navigate("/signin"); // redirect to SignIn page
       }
     } catch (error: any) {
@@ -31,8 +32,16 @@ export default function Register() {
 
       if (error.response?.data) {
         setErrors(error.response.data);
+        errorToast(
+          Object.entries(error.response.data)
+            .map(([key, value]: any) =>
+              Array.isArray(value) ? value.join(", ") : value
+            )
+            .join(" | ")
+        );
       } else {
         setErrors({ general: error.message });
+        errorToast(error.message);
       }
     }
   };

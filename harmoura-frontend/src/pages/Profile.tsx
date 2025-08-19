@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { successToast, errorToast } from "../utils/toasts";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -67,6 +68,7 @@ export default function Profile() {
       localStorage.setItem("artistStats", JSON.stringify(res.data.artist_stats || artistStats));
     } catch (err) {
       console.error("Failed to fetch profile:", err);
+      errorToast("Failed to load profile.");
     }
   };
 
@@ -102,7 +104,7 @@ export default function Profile() {
         : profilePictureUrl;
       setProfilePictureUrl(picUrl);
       setEditing(false);
-      alert("Profile updated successfully!");
+      successToast("Profile updated successfully!");
       setEmotionStats(res.data.emotion_stats || emotionStats);
       setArtistStats(res.data.artist_stats || artistStats);
 
@@ -111,7 +113,7 @@ export default function Profile() {
       localStorage.setItem("artistStats", JSON.stringify(res.data.artist_stats || artistStats));
     } catch (err) {
       console.error("Failed to update profile:", err);
-      alert("Failed to update profile.");
+      errorToast("Failed to update profile.");
     }
   };
 
@@ -128,11 +130,11 @@ export default function Profile() {
       {
         data: emotionData,
         backgroundColor: [
-          "#FFC857", // Happiness
-          "#2A4D69", // Sadness
-          "#88B04B", // Calmness
-          "#FF8C42", // Excitement
-          "#E63946", // Love
+          "#FFC857",
+          "#2A4D69",
+          "#88B04B",
+          "#FF8C42",
+          "#E63946",
         ],
         borderColor: "#ffffff",
         borderWidth: 2,

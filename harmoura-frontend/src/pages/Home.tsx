@@ -3,6 +3,7 @@ import axios from "axios";
 import { FaPlay } from "react-icons/fa";
 import { usePlayer } from "../context/PlayerContext"; // ✅ import context
 import Fuse from "fuse.js"; // for fuzzy search
+import { infoToast } from "../utils/toasts"; // ✅ import toast
 
 type Song = {
   id: number;
@@ -58,7 +59,7 @@ export default function Home() {
   const playSongIfSignedIn = (song: Song) => {
     const token = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
     if (!token) {
-      alert("Please sign in to play songs."); // prompt
+      infoToast("Please sign in to play songs."); // ✅ toast instead of alert
       return;
     }
     handlePlaySong(song, songs); // play if signed in
