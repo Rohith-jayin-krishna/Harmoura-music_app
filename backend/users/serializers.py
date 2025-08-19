@@ -72,6 +72,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     profile_picture_url = serializers.SerializerMethodField()
     emotion_stats = serializers.DictField(read_only=True)
     artist_stats = serializers.DictField(read_only=True)
+    portrait_data = serializers.JSONField(required=False)  # <-- added for Harmoura Portrait
 
     class Meta:
         model = UserProfile
@@ -82,6 +83,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "profile_picture_url",
             "emotion_stats",
             "artist_stats",
+            "portrait_data",  # <-- include in serialized output
         )
 
     def get_profile_picture_url(self, obj):

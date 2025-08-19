@@ -60,6 +60,10 @@ class UserProfile(models.Model):
     emotion_stats = models.JSONField(default=dict)  # e.g., {"Happiness": 5, "Sadness": 2}
     artist_stats = models.JSONField(default=dict)   # e.g., {"Artist Name": 10}
 
+    # ---------------- Harmoura Portrait ---------------- #
+    # Stores portrait strokes or gradient state for persistence
+    portrait_data = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         return f"{self.user.username} Profile"
 

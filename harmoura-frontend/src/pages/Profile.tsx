@@ -1,6 +1,7 @@
 import { useState, useEffect, type ChangeEvent } from "react";
 import axios from "axios";
 import { type Emotion } from "../context/PlayerContext";
+import HarmouraPortrait from "../components/HarmouraPortrait";
 import { Pie } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -182,6 +183,13 @@ export default function Profile() {
           </button>
         </div>
       )}
+      {/* Harmoura Portrait */}
+<div className="bg-white shadow-lg rounded-lg p-5 mb-6">
+  <h2 className="text-lg font-semibold mb-2 text-gray-800">Harmoura Portrait</h2>
+  <HarmouraPortrait
+    emotionStats={emotionStats} // pass full emotionStats object
+  />
+</div>
 
       {/* Emotion Pie Chart */}
       <div className="bg-white shadow-lg rounded-lg p-5 mb-6">
