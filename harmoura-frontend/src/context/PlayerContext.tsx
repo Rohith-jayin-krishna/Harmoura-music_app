@@ -1,15 +1,17 @@
-// src/context/PlayerContext.tsx
 import { createContext, useContext, useRef, useState, useEffect } from "react";
 
 const BASE_URL = "http://127.0.0.1:8000";
 const toFullUrl = (u?: string) =>
   !u ? "" : u.startsWith("http") ? u : `${BASE_URL}${u}`;
 
+export type Emotion = "Happiness" | "Sadness" | "Calmness" | "Excitement" | "Love";
+
 interface Song {
   id: number;
   title: string;
   artist: string;
   src: string;
+  emotion?: Emotion;
 }
 
 interface PlayerContextType {
@@ -23,6 +25,8 @@ interface PlayerContextType {
   playNext: () => void;
   playPrevious: () => void;
   audioRef: React.RefObject<HTMLAudioElement>;
+  emotionStats: Record<Emotion, number>;
+  artistStats: Record<string, number>;
 }
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -33,19 +37,49 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentSongIndex, setCurrentSongIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const [emotionStats, setEmotionStats] = useState<Record<Emotion, number>>({
+    Happiness: 0,
+    Sadness: 0,
+    Calmness: 0,
+    Excitement: 0,
+    Love: 0,
+  });
+
+  const [artistStats, setArtistStats] = useState<Record<string, number>>({});
+
   const audioRef = useRef<HTMLAudioElement>(new Audio());
 
-  // Play a song (prevent overlapping)
-  const handlePlaySong = (song: Song, playlist?: Song[]) => {
+  const token =
+    localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+
+  // Fetch stats from backend on load
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/users/profile/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setEmotionStats(data.emotion_stats || emotionStats);
+        setArtistStats(data.artist_stats || artistStats);
+      } catch (err) {
+        console.error("Failed to fetch stats:", err);
+      }
+    };
+
+    fetchStats();
+  }, [token]);
+
+  const handlePlaySong = async (song: Song, playlist?: Song[]) => {
     if (!song) return;
 
-    // If same song, toggle
     if (currentSong?.id === song.id) {
       togglePlayPause();
       return;
     }
 
-    // Update playlist if provided
     if (playlist) setSongs(playlist);
 
     const audioUrl = toFullUrl(song.src);
@@ -56,6 +90,37 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
       ? playlist.findIndex((s) => s.id === song.id)
       : songs.findIndex((s) => s.id === song.id);
     setCurrentSongIndex(index !== -1 ? index : null);
+
+    // Update emotion stats locally
+    if (song.emotion) {
+      const key: Emotion = song.emotion;
+      setEmotionStats((prev) => ({
+        ...prev,
+        [key]: (prev[key] || 0) + 1,
+      }));
+    }
+
+    // Update artist stats locally
+    if (song.artist) {
+      setArtistStats((prev) => ({
+        ...prev,
+        [song.artist]: (prev[song.artist] || 0) + 1,
+      }));
+    }
+
+    // Update backend
+    try {
+      await fetch(`${BASE_URL}/api/users/play_song/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ song_id: song.id }),
+      });
+    } catch (err) {
+      console.error("Failed to update play stats on backend", err);
+    }
 
     if (audioRef.current) {
       audioRef.current.pause();
@@ -92,7 +157,6 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
     handlePlaySong(songs[prevIndex], songs);
   };
 
-  // Ensure audioRef persists across renders
   useEffect(() => {
     const audio = audioRef.current;
     const handleEnded = () => playNext();
@@ -113,6 +177,8 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
         playNext,
         playPrevious,
         audioRef,
+        emotionStats,
+        artistStats,
       }}
     >
       {children}

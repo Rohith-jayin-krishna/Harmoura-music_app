@@ -194,9 +194,10 @@ import os
 from django.conf import settings
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from .models import UserProfile
+from .models import UserProfile, Song
+from .serializers import SongSerializer
 
 @api_view(["GET", "PUT"])
 @permission_classes([IsAuthenticated])
@@ -204,6 +205,7 @@ from .models import UserProfile
 def user_profile(request):
     """
     Fetch or update the profile of the currently logged-in user.
+    Includes emotion and artist stats in the GET response.
     """
     user = request.user
     # Ensure profile exists
@@ -218,7 +220,9 @@ def user_profile(request):
             "first_name": user.first_name or "",
             "last_name": user.last_name or "",
             "profile_picture": profile_url,
-            "profile_exists": bool(profile.profile_picture)
+            "profile_exists": bool(profile.profile_picture),
+            "emotion_stats": profile.emotion_stats or {},
+            "artist_stats": profile.artist_stats or {}
         })
 
     elif request.method == "PUT":
@@ -249,12 +253,58 @@ def user_profile(request):
             "first_name": user.first_name or "",
             "last_name": user.last_name or "",
             "profile_picture": profile_url,
-            "profile_exists": bool(profile.profile_picture)
+            "profile_exists": bool(profile.profile_picture),
+            "emotion_stats": profile.emotion_stats or {},
+            "artist_stats": profile.artist_stats or {}
         })
-    # Public endpoint for all songs (no auth required)
+
+# Public endpoint for all songs (no auth required)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def public_songs(request):
     songs = Song.objects.all()
     serializer = SongSerializer(songs, many=True)
     return Response(serializer.data)
+
+# ---------------- emo and artist mapping---------------- #
+from django.db.models import F
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import Song, UserProfile
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def play_song(request):
+    """
+    Endpoint to mark a song as played by the user.
+    Updates emotion and artist stats in the user's profile.
+    Expects JSON: { "song_id": <id> }
+    """
+    user = request.user
+    song_id = request.data.get("song_id")
+
+    try:
+        song = Song.objects.get(id=song_id)
+    except Song.DoesNotExist:
+        return Response({"error": "Song not found"}, status=404)
+
+    # Ensure user profile exists
+    profile, created = UserProfile.objects.get_or_create(user=user)
+
+    # Ensure stats dictionaries exist
+    if not profile.emotion_stats:
+        profile.emotion_stats = {}
+    if not profile.artist_stats:
+        profile.artist_stats = {}
+
+    # Update emotion stats
+    if song.emotion:
+        profile.emotion_stats[song.emotion] = profile.emotion_stats.get(song.emotion, 0) + 1
+
+    # Update artist stats
+    if song.artist:
+        profile.artist_stats[song.artist] = profile.artist_stats.get(song.artist, 0) + 1
+
+    profile.save()
+    return Response({"message": f"{song.title} played successfully"})
