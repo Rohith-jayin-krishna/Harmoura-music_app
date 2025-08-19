@@ -279,6 +279,7 @@ def play_song(request):
     """
     Endpoint to mark a song as played by the user.
     Updates emotion and artist stats in the user's profile.
+    Returns updated emotion_stats for dynamic portrait updates.
     Expects JSON: { "song_id": <id> }
     """
     user = request.user
@@ -307,4 +308,9 @@ def play_song(request):
         profile.artist_stats[song.artist] = profile.artist_stats.get(song.artist, 0) + 1
 
     profile.save()
-    return Response({"message": f"{song.title} played successfully"})
+
+    # Return updated emotion stats along with message
+    return Response({
+        "message": f"{song.title} played successfully",
+        "emotion_stats": profile.emotion_stats
+    })
