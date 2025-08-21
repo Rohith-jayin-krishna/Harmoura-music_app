@@ -27,12 +27,14 @@ interface PlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement>;
   emotionStats: Record<Emotion, number>;
   artistStats: Record<string, number>;
+  fetchRecommendedSongs: () => Promise<void>; // new for home
 }
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
 export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
   const [songs, setSongs] = useState<Song[]>([]);
+  const [currentPlaylist, setCurrentPlaylist] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [currentSongIndex, setCurrentSongIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -72,6 +74,22 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
     fetchStats();
   }, [token]);
 
+  // ----------------- Recommended Songs for Home (Backend) ----------------- //
+  const fetchRecommendedSongs = async () => {
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/users/songs/recommended/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const recommended: Song[] = await res.json();
+
+      setCurrentPlaylist(recommended);
+    } catch (err) {
+      console.error("Failed to fetch recommended songs:", err);
+    }
+  };
+
   const handlePlaySong = async (song: Song, playlist?: Song[]) => {
     if (!song) return;
 
@@ -80,15 +98,15 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    if (playlist) setSongs(playlist);
+    if (playlist) setCurrentPlaylist(playlist);
+
+    const playlistToUse = playlist || currentPlaylist.length ? currentPlaylist : songs;
 
     const audioUrl = toFullUrl(song.src);
     const playable = { ...song, src: audioUrl };
     setCurrentSong(playable);
 
-    const index = playlist
-      ? playlist.findIndex((s) => s.id === song.id)
-      : songs.findIndex((s) => s.id === song.id);
+    const index = playlistToUse.findIndex((s) => s.id === song.id);
     setCurrentSongIndex(index !== -1 ? index : null);
 
     // Update emotion stats locally
@@ -146,15 +164,15 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const playNext = () => {
-    if (!songs.length || currentSongIndex === null) return;
-    const nextIndex = (currentSongIndex + 1) % songs.length;
-    handlePlaySong(songs[nextIndex], songs);
+    if (!currentPlaylist.length || currentSongIndex === null) return;
+    const nextIndex = (currentSongIndex + 1) % currentPlaylist.length;
+    handlePlaySong(currentPlaylist[nextIndex], currentPlaylist);
   };
 
   const playPrevious = () => {
-    if (!songs.length || currentSongIndex === null) return;
-    const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
-    handlePlaySong(songs[prevIndex], songs);
+    if (!currentPlaylist.length || currentSongIndex === null) return;
+    const prevIndex = (currentSongIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+    handlePlaySong(currentPlaylist[prevIndex], currentPlaylist);
   };
 
   useEffect(() => {
@@ -162,7 +180,7 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
     const handleEnded = () => playNext();
     audio.addEventListener("ended", handleEnded);
     return () => audio.removeEventListener("ended", handleEnded);
-  }, [songs, currentSongIndex]);
+  }, [currentPlaylist, currentSongIndex]);
 
   return (
     <PlayerContext.Provider
@@ -179,6 +197,7 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
         audioRef,
         emotionStats,
         artistStats,
+        fetchRecommendedSongs, // exposed for Home screen
       }}
     >
       {children}

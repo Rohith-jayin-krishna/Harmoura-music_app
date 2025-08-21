@@ -5,10 +5,11 @@ from .views import (
     create_playlist, add_song_to_playlist,
     all_songs, remove_song_from_playlist, delete_playlist,
     user_profile, public_songs,
-    play_song  # ✅ import the new endpoint
+    play_song, recommended_songs  # ✅ import the new recommended_songs view
 )
 
 urlpatterns = [
+    # Auth
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
     
@@ -22,6 +23,7 @@ urlpatterns = [
     # Songs
     path("songs/", all_songs, name="all_songs"),
     path("songs/public/", public_songs, name="public_songs"),
+    path("songs/recommended/", recommended_songs, name="recommended_songs"),  # ✅ New recommended songs endpoint
     
     # User profile
     path("profile/", user_profile, name="user_profile"),

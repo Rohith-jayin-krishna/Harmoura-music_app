@@ -28,7 +28,7 @@ class SongSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Song
-        fields = ("id", "title", "artist", "src", "cover_url")
+        fields = ("id", "title", "artist", "src", "cover_url", "emotion", "language")
 
     def get_cover_url(self, obj):
         request = self.context.get("request")

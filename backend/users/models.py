@@ -11,11 +11,22 @@ class Song(models.Model):
         ("Love", "Love"),
     ]
 
+    LANGUAGES = [
+        ("English", "English"),
+        ("Hindi", "Hindi"),
+        ("Tamil", "Tamil"),
+        ("Malayalam", "Malayalam"),
+        ("Urdu", "Urdu"),
+        ("Punjabi", "Punjabi"),
+        ("Telugu", "Telugu"),
+    ]
+
     title = models.CharField(max_length=255)
     artist = models.CharField(max_length=255)
     src = models.FileField(upload_to="songs/")  # Audio file
     cover = models.ImageField(upload_to="song_covers/", blank=True, null=True)  # Cover image
     emotion = models.CharField(max_length=20, choices=EMOTIONS, blank=True, null=True)  # Emotion field
+    language = models.CharField(max_length=20, choices=LANGUAGES, blank=True, null=True)  # Language field
 
     def __str__(self):
         return f"{self.title} by {self.artist}"
@@ -57,11 +68,11 @@ class UserProfile(models.Model):
     )
 
     # Track plays
-    emotion_stats = models.JSONField(default=dict)  # e.g., {"Happiness": 5, "Sadness": 2}
-    artist_stats = models.JSONField(default=dict)   # e.g., {"Artist Name": 10}
+    emotion_stats = models.JSONField(default=dict)   # e.g., {"Happiness": 5, "Sadness": 2}
+    artist_stats = models.JSONField(default=dict)    # e.g., {"Artist Name": 10}
+    language_stats = models.JSONField(default=dict)  # e.g., {"English": 7, "Hindi": 3}
 
     # ---------------- Harmoura Portrait ---------------- #
-    # Stores portrait strokes or gradient state for persistence
     portrait_data = models.JSONField(default=list, blank=True)
 
     def __str__(self):
