@@ -1,6 +1,6 @@
 // --- components/PlaylistView.tsx
 import { useState } from "react";
-import { FaPlay, FaEllipsisV } from "react-icons/fa";
+import { FaEllipsisV } from "react-icons/fa";
 import { usePlayer } from "../context/PlayerContext";
 import type { Song, Playlist } from "../pages/Library";
 
@@ -19,7 +19,7 @@ export default function PlaylistView({
   handleRemoveSong,
   onBack,
 }: Props) {
-  const { handlePlaySong, currentSong } = usePlayer();
+  const { handlePlaySong, currentSong, isPlaying } = usePlayer();
   const [playlistSearch, setPlaylistSearch] = useState("");
   const [showCentralLibrary, setShowCentralLibrary] = useState(false);
 
@@ -33,19 +33,19 @@ export default function PlaylistView({
   });
 
   return (
-    <div>
+    <div className="p-6 max-w-4xl mx-auto">
       <button
         onClick={onBack}
-        className="mb-4 px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+        className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition"
       >
         &larr; Back to Playlists
       </button>
 
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">{playlist.name}</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">{playlist.name}</h2>
         <button
           onClick={() => setShowCentralLibrary(!showCentralLibrary)}
-          className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition"
         >
           Browse Central Library
         </button>
@@ -57,40 +57,62 @@ export default function PlaylistView({
           placeholder="Search songs in this playlist..."
           value={playlistSearch}
           onChange={(e) => setPlaylistSearch(e.target.value)}
-          className="px-4 py-2 border rounded-lg w-full mb-2"
+          className="px-4 py-2 border rounded-lg w-full mb-2 focus:outline-none focus:ring-2 focus:ring-red-400"
         />
       </div>
 
       {/* Playlist Songs */}
-      <div className="flex flex-col gap-2 mb-4">
+      <div className="space-y-3">
         {filteredSongs.map((song) => {
           const isPlayingSong = currentSong && currentSong.id === song.id;
+
           return (
             <div
               key={song.id}
-              className={`flex justify-between items-center p-3 rounded-lg shadow hover:shadow-md transition
-                ${isPlayingSong ? "bg-gray-200" : "bg-white"}`}
+              className={`flex items-center justify-between p-3 border rounded-lg cursor-default hover:bg-gray-50 shadow-sm transition ${
+                isPlayingSong ? "bg-red-50 border-red-300" : "border-gray-200"
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <img
-                  src={song.cover_url || "/default_cover.png"}
-                  alt={song.title}
-                  className="w-10 h-10 rounded-2xl object-cover flex-shrink-0"
-                  loading="lazy"
-                />
-                <div>
-                  <p className="font-semibold">{song.title}</p>
-                  <p className="text-sm text-gray-500">{song.artist}</p>
+              {/* Left info */}
+              <div className="flex items-center space-x-4">
+                {song.cover_url ? (
+                  <img
+                    src={song.cover_url}
+                    alt={song.title}
+                    className="w-12 h-12 object-cover rounded-md border border-gray-200"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-gray-200 flex items-center justify-center rounded-md text-gray-400">
+                    N/A
+                  </div>
+                )}
+                <div className="flex flex-col">
+                  <span className="text-lg font-semibold text-gray-800">{song.title}</span>
+                  <span className="text-gray-500 text-sm">{song.artist}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Right controls: ▶ button + ellipsis */}
+              <div className="flex items-center space-x-3">
+                {/* Play button */}
                 <button
                   onClick={() => handlePlaySong(song, playlist.songs)}
-                  className="bg-[#f9243d] text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                  className="text-red-500 font-semibold hover:text-red-600 transition"
                 >
-                  <FaPlay />
+                  {isPlayingSong && isPlaying ? (
+                    <div className="flex items-end space-x-1">
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                    </div>
+                  ) : (
+                    "▶"
+                  )}
                 </button>
+
+                {/* Ellipsis menu */}
                 <div className="relative group">
                   <button className="p-2 hover:bg-gray-200 rounded-full">
                     <FaEllipsisV />
@@ -119,12 +141,12 @@ export default function PlaylistView({
               <button
                 key={song.id}
                 onClick={() => handleAddSong(playlist.id, song.id)}
-                className="flex items-center gap-2 bg-gray-200 px-3 py-1 rounded-lg hover:bg-gray-300"
+                className="flex items-center gap-2 bg-gray-200 px-3 py-1 rounded-lg hover:bg-gray-300 transition"
               >
                 <img
                   src={song.cover_url || "/default_cover.png"}
                   alt={song.title}
-                  className="w-8 h-8 rounded-2xl object-cover flex-shrink-0"
+                  className="w-8 h-8 rounded-md object-cover flex-shrink-0"
                   loading="lazy"
                 />
                 <span>{song.title} - {song.artist}</span>

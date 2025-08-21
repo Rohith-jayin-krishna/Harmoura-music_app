@@ -5,7 +5,11 @@ from .views import (
     create_playlist, add_song_to_playlist,
     all_songs, remove_song_from_playlist, delete_playlist,
     user_profile, public_songs,
-    play_song, recommended_songs  # ✅ import the new recommended_songs view
+    play_song, recommended_songs,
+    search_songs_artists_emotions,
+    songs_by_artist,
+    songs_by_emotion,
+    songs_by_language  # ✅ add this import
 )
 
 urlpatterns = [
@@ -23,11 +27,17 @@ urlpatterns = [
     # Songs
     path("songs/", all_songs, name="all_songs"),
     path("songs/public/", public_songs, name="public_songs"),
-    path("songs/recommended/", recommended_songs, name="recommended_songs"),  # ✅ New recommended songs endpoint
-    
+    path("songs/recommended/", recommended_songs, name="recommended_songs"),
+
+    # Search & Tile
+    path("songs/search/", search_songs_artists_emotions, name="search_songs_artists_emotions"),
+    path("songs/artist/<str:artist_name>/", songs_by_artist, name="songs_by_artist"),
+    path("songs/emotion/<str:emotion_name>/", songs_by_emotion, name="songs_by_emotion"),
+    path("songs/language/<str:language_name>/", songs_by_language, name="songs_by_language"),  # ✅ language tile
+
     # User profile
     path("profile/", user_profile, name="user_profile"),
 
-    # ✅ Play song to update stats
+    # Play song to update stats
     path("play_song/", play_song, name="play_song"),
 ]
