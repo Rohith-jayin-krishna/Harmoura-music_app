@@ -444,3 +444,88 @@ def recommended_songs(request):
         })
 
     return Response(serialized)
+
+# ---------------- Search & Tile Click ---------------- #
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.db.models import Q
+from .models import Song
+from .serializers import SongSerializer
+
+# ---------------- Search Endpoint ---------------- #
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def search_songs_artists_emotions(request):
+    """
+    Search songs, artists, emotions, or languages.
+    Query param: ?q=<search_term>
+    """
+    query = request.query_params.get("q", "").strip()
+    if not query:
+        return Response({"songs": [], "artists": [], "emotions": [], "languages": []})
+
+    # Songs matching the title
+    songs = Song.objects.filter(title__icontains=query)
+    
+    # Distinct artists matching the query
+    artists = Song.objects.filter(artist__icontains=query).values_list('artist', flat=True).distinct()
+    
+    # Distinct emotions matching the query
+    emotions = Song.objects.filter(emotion__icontains=query).values_list('emotion', flat=True).distinct()
+    
+    # Distinct languages matching the query
+    languages = Song.objects.filter(language__icontains=query).values_list('language', flat=True).distinct()
+
+    # Serialize songs using SongSerializer for full details
+    serializer = SongSerializer(songs, many=True, context={"request": request})
+
+    return Response({
+        "songs": serializer.data,
+        "artists": [artist for artist in artists if artist],
+        "emotions": [emotion for emotion in emotions if emotion],
+        "languages": [lang for lang in languages if lang]
+    })
+
+
+# ---------------- Tile Click Endpoints ---------------- #
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def songs_by_artist(request, artist_name):
+    """
+    Return all songs by a specific artist (for artist tile click).
+    """
+    songs = Song.objects.filter(artist__iexact=artist_name)
+    serializer = SongSerializer(songs, many=True, context={"request": request})
+    return Response({
+        "artist": artist_name,
+        "songs": serializer.data
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def songs_by_emotion(request, emotion_name):
+    """
+    Return all songs of a specific emotion (for emotion tile click).
+    """
+    songs = Song.objects.filter(emotion__iexact=emotion_name)
+    serializer = SongSerializer(songs, many=True, context={"request": request})
+    return Response({
+        "emotion": emotion_name,
+        "songs": serializer.data
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def songs_by_language(request, language_name):
+    """
+    Return all songs of a specific language (for language tile click).
+    """
+    songs = Song.objects.filter(language__iexact=language_name)
+    serializer = SongSerializer(songs, many=True, context={"request": request})
+    return Response({
+        "language": language_name,
+        "songs": serializer.data
+    })

@@ -9,6 +9,10 @@ import Profile from "./pages/Profile";
 import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
 import MusicPlayer from "./components/MusicPlayer";
+import SearchPage from "./pages/SearchPage";
+
+// ✅ Import the new category page
+import CategorySongsPage from "./pages/CategorySongsPage";
 
 import { PlayerProvider, usePlayer } from "./context/PlayerContext";
 import { ToastContainer } from "react-toastify";
@@ -109,15 +113,12 @@ function App() {
 
   return (
     <Router>
-      {/* Toast Container */}
       <ToastContainer />
 
       <div className="min-h-screen flex flex-col overflow-y-auto scroll-smooth custom-scrollbar">
         <Navbar user={user} onSignOut={handleSignOut} />
 
-        {/* Page Content */}
         <main className="flex-grow bg-gray-100 p-6 pb-32">
-          {/* pb-32 ensures content doesn't get hidden under the fixed music player */}
           <Routes>
             <Route path="/" element={<Home />} />
             <Route
@@ -135,11 +136,21 @@ function App() {
               path="/profile"
               element={user ? <Profile /> : <Navigate to="/signin" />}
             />
+            <Route
+              path="/search"
+              element={user ? <SearchPage /> : <Navigate to="/signin" />}
+            />
+
+            {/* ✅ Dynamic Category Route */}
+            <Route
+              path="/songs/category/:type/:value"
+              element={user ? <CategorySongsPage /> : <Navigate to="/signin" />}
+            />
+
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
 
-        {/* Fixed MusicPlayer */}
         {user && currentSong && (
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-lg">
             <MusicPlayer
@@ -153,7 +164,6 @@ function App() {
           </div>
         )}
 
-        {/* Footer */}
         <footer className="bg-gray-900 text-white text-center p-4">
           &copy; {new Date().getFullYear()} Harmoura. All rights reserved.
         </footer>
