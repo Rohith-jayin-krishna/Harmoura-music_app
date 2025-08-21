@@ -205,7 +205,7 @@ from .serializers import SongSerializer
 def user_profile(request):
     """
     Fetch or update the profile of the currently logged-in user.
-    Includes emotion and artist stats in the GET response.
+    Includes emotion, artist, and language stats in the GET response.
     """
     user = request.user
     # Ensure profile exists
@@ -222,7 +222,8 @@ def user_profile(request):
             "profile_picture": profile_url,
             "profile_exists": bool(profile.profile_picture),
             "emotion_stats": profile.emotion_stats or {},
-            "artist_stats": profile.artist_stats or {}
+            "artist_stats": profile.artist_stats or {},
+            "language_stats": profile.language_stats or {}  # ✅ Added
         })
 
     elif request.method == "PUT":
@@ -255,7 +256,8 @@ def user_profile(request):
             "profile_picture": profile_url,
             "profile_exists": bool(profile.profile_picture),
             "emotion_stats": profile.emotion_stats or {},
-            "artist_stats": profile.artist_stats or {}
+            "artist_stats": profile.artist_stats or {},
+            "language_stats": profile.language_stats or {}  # ✅ Added
         })
 
 # Public endpoint for all songs (no auth required)
@@ -266,7 +268,7 @@ def public_songs(request):
     serializer = SongSerializer(songs, many=True)
     return Response(serializer.data)
 
-# ---------------- emo and artist mapping---------------- #
+# ---------------- emo, artist and language mapping---------------- #
 from django.db.models import F
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -278,8 +280,8 @@ from .models import Song, UserProfile
 def play_song(request):
     """
     Endpoint to mark a song as played by the user.
-    Updates emotion and artist stats in the user's profile.
-    Returns updated emotion_stats for dynamic portrait updates.
+    Updates emotion, artist, and language stats in the user's profile.
+    Returns updated stats for dynamic portrait updates.
     Expects JSON: { "song_id": <id> }
     """
     user = request.user
@@ -298,6 +300,8 @@ def play_song(request):
         profile.emotion_stats = {}
     if not profile.artist_stats:
         profile.artist_stats = {}
+    if not profile.language_stats:
+        profile.language_stats = {}
 
     # Update emotion stats
     if song.emotion:
@@ -307,10 +311,136 @@ def play_song(request):
     if song.artist:
         profile.artist_stats[song.artist] = profile.artist_stats.get(song.artist, 0) + 1
 
+    # Update language stats
+    if song.language:
+        profile.language_stats[song.language] = profile.language_stats.get(song.language, 0) + 1
+
     profile.save()
 
-    # Return updated emotion stats along with message
+    # Return updated stats
     return Response({
         "message": f"{song.title} played successfully",
-        "emotion_stats": profile.emotion_stats
+        "emotion_stats": profile.emotion_stats,
+        "artist_stats": profile.artist_stats,
+        "language_stats": profile.language_stats
     })
+
+# ---------------- Recommended Songs & Listening Stats ---------------- #
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import Song, UserProfile
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def play_song(request):
+    """
+    Endpoint to mark a song as played by the user.
+    Updates language, emotion, and artist stats in the user's profile.
+    Expects JSON: { "song_id": <id> }
+    """
+    user = request.user
+    song_id = request.data.get("song_id")
+
+    try:
+        song = Song.objects.get(id=song_id)
+    except Song.DoesNotExist:
+        return Response({"error": "Song not found"}, status=404)
+
+    # Ensure user profile exists
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    # Ensure stats dicts exist
+    if not profile.emotion_stats:
+        profile.emotion_stats = {}
+    if not profile.artist_stats:
+        profile.artist_stats = {}
+    if not profile.language_stats:
+        profile.language_stats = {}
+
+    # Update emotion stats
+    if song.emotion:
+        profile.emotion_stats[song.emotion] = profile.emotion_stats.get(song.emotion, 0) + 1
+
+    # Update artist stats
+    if song.artist:
+        profile.artist_stats[song.artist] = profile.artist_stats.get(song.artist, 0) + 1
+
+    # Update language stats
+    if song.language:
+        profile.language_stats[song.language] = profile.language_stats.get(song.language, 0) + 1
+
+    profile.save()
+
+    return Response({
+        "message": f"{song.title} played successfully",
+        "emotion_stats": profile.emotion_stats,
+        "artist_stats": profile.artist_stats,
+        "language_stats": profile.language_stats,
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def recommended_songs(request):
+    """
+    Recommend songs based on user's listening stats:
+    Priority order:
+    1. Language (highest weight)
+    2. Emotion (medium weight)
+    3. Artist (lowest weight)
+    Returns top 6 ranked songs.
+    """
+    user = request.user
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    # Fetch user stats safely
+    emotion_stats = profile.emotion_stats or {}
+    artist_stats = profile.artist_stats or {}
+    language_stats = profile.language_stats or {}
+
+    songs = Song.objects.all()
+    song_scores = []
+
+    for song in songs:
+        # Score from emotion preferences
+        emotion_score = emotion_stats.get(song.emotion, 0) if song.emotion else 0
+        # Score from artist preferences
+        artist_score = artist_stats.get(song.artist, 0) if song.artist else 0
+        # Score from language preferences
+        language_score = language_stats.get(song.language, 0) if song.language else 0
+
+        # Weighted total score (Language > Emotion > Artist)
+        total_score = (language_score * 3) + (emotion_score * 2) + (artist_score * 1)
+
+        song_scores.append((total_score, song))
+
+    # Sort songs by score (highest first), then by ID for stable results
+    song_scores.sort(key=lambda x: (x[0], x[1].id), reverse=True)
+
+    # Pick top 6
+    top_songs = [song for _, song in song_scores[:6]]
+
+    # Helper for absolute URL
+    def get_absolute_url(file_or_str):
+        if not file_or_str:
+            return None
+        if hasattr(file_or_str, "url"):  # FileField/ImageField
+            return request.build_absolute_uri(file_or_str.url)
+        return request.build_absolute_uri(str(file_or_str))  # fallback
+
+    # Serialize response
+    serialized = []
+    for song in top_songs:
+        serialized.append({
+            "id": song.id,
+            "title": song.title,
+            "artist": song.artist,
+            "src": get_absolute_url(song.src),
+            "cover_url": get_absolute_url(song.cover),
+            "emotion": song.emotion,
+            "language": song.language,
+        })
+
+    return Response(serialized)

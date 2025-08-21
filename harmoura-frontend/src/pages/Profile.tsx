@@ -30,6 +30,7 @@ export default function Profile() {
   });
 
   const [artistStats, setArtistStats] = useState<Record<string, number>>({});
+  const [expandedArtists, setExpandedArtists] = useState<string[]>([]); // Track clicked artists
 
   const token =
     localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
@@ -126,7 +127,15 @@ export default function Profile() {
 
   const topArtists = Object.entries(artistStats)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    .slice(0, 3); // Show only top 3
+
+  const toggleArtist = (artist: string) => {
+    if (expandedArtists.includes(artist)) {
+      setExpandedArtists(expandedArtists.filter((a) => a !== artist));
+    } else {
+      setExpandedArtists([...expandedArtists, artist]);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
@@ -183,13 +192,14 @@ export default function Profile() {
           </button>
         </div>
       )}
+
       {/* Harmoura Portrait */}
-<div className="bg-white shadow-lg rounded-lg p-5 mb-6">
-  <h2 className="text-lg font-semibold mb-2 text-gray-800">Harmoura Portrait</h2>
-  <HarmouraPortrait
-    emotionStats={emotionStats} // pass full emotionStats object
-  />
-</div>
+      <div className="bg-white shadow-lg rounded-lg p-5 mb-6">
+        <h2 className="text-lg font-semibold mb-2 text-gray-800">Harmoura Portrait</h2>
+        <HarmouraPortrait
+          emotionStats={emotionStats} // pass full emotionStats object
+        />
+      </div>
 
       {/* Emotion Pie Chart */}
       <div className="bg-white shadow-lg rounded-lg p-5 mb-6">
@@ -205,11 +215,17 @@ export default function Profile() {
         <ul className="list-disc list-inside space-y-1 text-gray-700 text-sm">
           {topArtists.length ? (
             topArtists.map(([artist, count]) => (
-              <li key={artist}>
+              <li
+                key={artist}
+                className="cursor-pointer hover:text-[#f9243d]"
+                onClick={() => toggleArtist(artist)}
+              >
                 {artist}{" "}
-                <span className="text-gray-500">
-                  ({count} {count === 1 ? "play" : "plays"})
-                </span>
+                {expandedArtists.includes(artist) && (
+                  <span className="text-gray-500">
+                    ({count} {count === 1 ? "play" : "plays"})
+                  </span>
+                )}
               </li>
             ))
           ) : (
