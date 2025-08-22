@@ -2,8 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Song, Playlist, UserProfile
 
-# ---------------- Existing serializers (unchanged) ---------------- #
-
+# ---------------- Register Serializer ---------------- #
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
@@ -22,33 +21,42 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
-# ---------------- Song Serializer with cover ---------------- #
+# ---------------- Song Serializer with cover & src URL ---------------- #
 class SongSerializer(serializers.ModelSerializer):
     cover_url = serializers.SerializerMethodField()
+    src_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Song
-        fields = ("id", "title", "artist", "src", "cover_url", "emotion", "language")
+        fields = ("id", "title", "artist", "src", "src_url", "cover_url", "emotion", "language")
 
     def get_cover_url(self, obj):
         request = self.context.get("request")
         if obj.cover:
             url = obj.cover.url
-            if request:
-                return request.build_absolute_uri(url)
-            return url
+            return request.build_absolute_uri(url) if request else url
+        return None
+
+    def get_src_url(self, obj):
+        request = self.context.get("request")
+        if obj.src:
+            url = obj.src.url
+            return request.build_absolute_uri(url) if request else url
         return None
 
 
+# ---------------- Playlist Serializer ---------------- #
 class PlaylistSerializer(serializers.ModelSerializer):
     songs = SongSerializer(many=True, read_only=True)
     song_ids = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Song.objects.all(), required=False
     )
+    last_opened = serializers.DateTimeField(read_only=True)
+    open_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Playlist
-        fields = ("id", "name", "songs", "song_ids", "created_at")
+        fields = ("id", "name", "songs", "song_ids", "created_at", "last_opened", "open_count")
 
     def create(self, validated_data):
         song_ids = validated_data.pop("song_ids", [])
@@ -72,7 +80,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     profile_picture_url = serializers.SerializerMethodField()
     emotion_stats = serializers.DictField(read_only=True)
     artist_stats = serializers.DictField(read_only=True)
-    portrait_data = serializers.JSONField(required=False)  # <-- added for Harmoura Portrait
+    language_stats = serializers.DictField(read_only=True)  # <-- added
+    portrait_data = serializers.JSONField(required=False)
 
     class Meta:
         model = UserProfile
@@ -83,14 +92,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "profile_picture_url",
             "emotion_stats",
             "artist_stats",
-            "portrait_data",  # <-- include in serialized output
+            "language_stats",   # included
+            "portrait_data",
         )
 
     def get_profile_picture_url(self, obj):
         request = self.context.get("request")
         if obj.profile_picture:
             url = obj.profile_picture.url
-            if request:
-                return request.build_absolute_uri(url)
-            return url
+            return request.build_absolute_uri(url) if request else url
         return None

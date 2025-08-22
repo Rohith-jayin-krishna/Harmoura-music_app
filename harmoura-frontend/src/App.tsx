@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
 
@@ -10,8 +10,7 @@ import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
 import MusicPlayer from "./components/MusicPlayer";
 import SearchPage from "./pages/SearchPage";
-
-// ✅ Import the new category page
+import PlaylistView from "./components/PlaylistView"; // ✅ Import PlaylistView
 import CategorySongsPage from "./pages/CategorySongsPage";
 
 import { PlayerProvider, usePlayer } from "./context/PlayerContext";
@@ -141,10 +140,16 @@ function App() {
               element={user ? <SearchPage /> : <Navigate to="/signin" />}
             />
 
-            {/* ✅ Dynamic Category Route */}
+            {/* Dynamic Category Route */}
             <Route
               path="/songs/category/:type/:value"
               element={user ? <CategorySongsPage /> : <Navigate to="/signin" />}
+            />
+
+            {/* ✅ Playlist Route */}
+            <Route
+              path="/playlist/:id"
+              element={user ? <PlaylistViewWrapper /> : <Navigate to="/signin" />}
             />
 
             <Route path="*" element={<Navigate to="/" />} />
@@ -169,5 +174,41 @@ function App() {
         </footer>
       </div>
     </Router>
+  );
+}
+
+// ✅ Playlist wrapper to fetch playlist by ID
+function PlaylistViewWrapper() {
+  const { id } = useParams<{ id: string }>();
+  const [playlist, setPlaylist] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchPlaylist = async () => {
+      const token =
+        localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+      if (!token) return;
+
+      try {
+        const res = await axios.get(`http://127.0.0.1:8000/api/playlists/${id}/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setPlaylist(res.data);
+      } catch (err) {
+        console.error("Failed to fetch playlist:", err);
+      }
+    };
+    fetchPlaylist();
+  }, [id]);
+
+  if (!playlist) return <div>Loading playlist...</div>;
+
+  return (
+    <PlaylistView
+      playlist={playlist}
+      allSongs={playlist.songs}
+      handleAddSong={() => {}}
+      handleRemoveSong={() => {}}
+      onBack={() => window.history.back()}
+    />
   );
 }

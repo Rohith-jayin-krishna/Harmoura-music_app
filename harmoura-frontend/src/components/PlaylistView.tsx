@@ -1,6 +1,5 @@
-// --- components/PlaylistView.tsx
-import { useState } from "react";
-import { FaEllipsisV } from "react-icons/fa";
+import { useState, useRef, useEffect } from "react";
+import { FaEllipsisV, FaPlus, FaTimes } from "react-icons/fa";
 import { usePlayer } from "../context/PlayerContext";
 import type { Song, Playlist } from "../pages/Library";
 
@@ -21,43 +20,139 @@ export default function PlaylistView({
 }: Props) {
   const { handlePlaySong, currentSong, isPlaying } = usePlayer();
   const [playlistSearch, setPlaylistSearch] = useState("");
-  const [showCentralLibrary, setShowCentralLibrary] = useState(false);
+  const [showLibrarySearch, setShowLibrarySearch] = useState(false);
+  const [librarySearch, setLibrarySearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  const searchQuery = playlistSearch.trim().toLowerCase();
+  const safeCoverUrl = (url?: string) => url || "/media/default_cover.png";
+
+  // Playlist songs filter
   const filteredSongs = playlist.songs.filter((song) => {
-    if (!searchQuery) return true;
-    return (
-      song.title.toLowerCase().includes(searchQuery) ||
-      song.artist.toLowerCase().includes(searchQuery)
-    );
+    if (!playlistSearch.trim()) return true;
+    const q = playlistSearch.toLowerCase();
+    return song.title.toLowerCase().includes(q) || song.artist.toLowerCase().includes(q);
   });
 
-  return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <button
-        onClick={onBack}
-        className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition"
-      >
-        &larr; Back to Playlists
-      </button>
+  // Library songs filter (show 4 max)
+  const filteredLibrary = allSongs
+    .filter((s) => !playlist.songs.some((ps) => ps.id === s.id))
+    .filter((s) => {
+      if (!librarySearch.trim()) return true;
+      const q = librarySearch.toLowerCase();
+      return s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q);
+    })
+    .slice(0, 4);
 
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">{playlist.name}</h2>
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <button
-          onClick={() => setShowCentralLibrary(!showCentralLibrary)}
-          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition"
+          onClick={onBack}
+          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg shadow-sm hover:bg-gray-200 transition flex-shrink-0"
         >
-          Browse Central Library
+          &larr; Back to Playlists
         </button>
+
+        <h2 className="text-3xl font-bold text-gray-800 flex-shrink-0">{playlist.name}</h2>
+
+        {/* Add Songs / Search */}
+        <div
+          className="relative w-full sm:w-64 mt-2 sm:mt-0 flex-shrink-0"
+          ref={searchRef}
+        >
+          {showLibrarySearch ? (
+            <div className="flex w-full">
+              <input
+                type="text"
+                placeholder="Search songs to add..."
+                value={librarySearch}
+                onChange={(e) => {
+                  setLibrarySearch(e.target.value);
+                  setShowDropdown(true);
+                }}
+                onFocus={() => setShowDropdown(true)}
+                className="flex-1 px-4 py-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-red-400 transition"
+              />
+              <button
+                onClick={() => {
+                  setShowLibrarySearch(false);
+                  setLibrarySearch("");
+                  setShowDropdown(false);
+                }}
+                className="px-3 py-2 bg-gray-200 border border-l-0 rounded-r-lg hover:bg-gray-300 transition flex items-center justify-center"
+              >
+                <FaTimes />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setShowLibrarySearch(true);
+                setShowDropdown(true);
+                setTimeout(() => searchRef.current?.focus(), 100);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg shadow-sm hover:bg-red-600 transition w-full justify-center"
+            >
+              <FaPlus /> Add Songs
+            </button>
+          )}
+
+          {/* Dropdown */}
+          {showDropdown && showLibrarySearch && (
+            <div className="absolute mt-1 w-full bg-white border rounded-lg shadow-lg z-20 overflow-hidden">
+              {filteredLibrary.length > 0 ? (
+                filteredLibrary.map((song) => (
+                  <button
+                    key={song.id}
+                    onClick={() => {
+                      handleAddSong(playlist.id, song.id);
+                      setLibrarySearch("");
+                      setShowDropdown(false);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 w-full hover:bg-gray-100 transition"
+                  >
+                    <img
+                      src={safeCoverUrl(song.cover_url)}
+                      alt={song.title}
+                      className="w-10 h-10 rounded-md object-cover"
+                    />
+                    <div className="flex flex-col text-left">
+                      <span className="text-sm font-medium text-gray-800">{song.title}</span>
+                      <span className="text-xs text-gray-500">{song.artist}</span>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-gray-500 text-sm">
+                  No matching songs found.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="mb-4">
+      {/* Playlist Search */}
+      <div className="mb-6">
         <input
           type="text"
           placeholder="Search songs in this playlist..."
           value={playlistSearch}
           onChange={(e) => setPlaylistSearch(e.target.value)}
-          className="px-4 py-2 border rounded-lg w-full mb-2 focus:outline-none focus:ring-2 focus:ring-red-400"
+          className="px-4 py-2 border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-red-400 shadow-sm"
         />
       </div>
 
@@ -69,32 +164,23 @@ export default function PlaylistView({
           return (
             <div
               key={song.id}
-              className={`flex items-center justify-between p-3 border rounded-lg cursor-default hover:bg-gray-50 shadow-sm transition ${
-                isPlayingSong ? "bg-red-50 border-red-300" : "border-gray-200"
+              className={`flex items-center justify-between p-3 border rounded-lg shadow hover:shadow-md transition cursor-pointer ${
+                isPlayingSong ? "bg-red-50 border-red-300" : "bg-white border-gray-200"
               }`}
             >
-              {/* Left info */}
               <div className="flex items-center space-x-4">
-                {song.cover_url ? (
-                  <img
-                    src={song.cover_url}
-                    alt={song.title}
-                    className="w-12 h-12 object-cover rounded-md border border-gray-200"
-                  />
-                ) : (
-                  <div className="w-12 h-12 bg-gray-200 flex items-center justify-center rounded-md text-gray-400">
-                    N/A
-                  </div>
-                )}
+                <img
+                  src={safeCoverUrl(song.cover_url)}
+                  alt={song.title}
+                  className="w-14 h-14 object-cover rounded-lg border border-gray-200"
+                />
                 <div className="flex flex-col">
                   <span className="text-lg font-semibold text-gray-800">{song.title}</span>
                   <span className="text-gray-500 text-sm">{song.artist}</span>
                 </div>
               </div>
 
-              {/* Right controls: ▶ button + ellipsis */}
               <div className="flex items-center space-x-3">
-                {/* Play button */}
                 <button
                   onClick={() => handlePlaySong(song, playlist.songs)}
                   className="text-red-500 font-semibold hover:text-red-600 transition"
@@ -112,14 +198,13 @@ export default function PlaylistView({
                   )}
                 </button>
 
-                {/* Ellipsis menu */}
                 <div className="relative group">
-                  <button className="p-2 hover:bg-gray-200 rounded-full">
+                  <button className="p-2 hover:bg-gray-100 rounded-full transition">
                     <FaEllipsisV />
                   </button>
-                  <div className="absolute right-0 mt-2 w-24 bg-white border rounded shadow-lg opacity-0 group-hover:opacity-100 transition z-10">
+                  <div className="absolute right-0 mt-2 w-32 bg-white border rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition z-10">
                     <button
-                      className="w-full text-left px-3 py-1 hover:bg-gray-100"
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-lg"
                       onClick={() => handleRemoveSong(playlist.id, song.id)}
                     >
                       Remove
@@ -131,29 +216,6 @@ export default function PlaylistView({
           );
         })}
       </div>
-
-      {/* Central Library Browse */}
-      {showCentralLibrary && (
-        <div className="border-t pt-4 flex flex-wrap gap-2">
-          {allSongs
-            .filter((s) => !playlist.songs.some((ps) => ps.id === s.id))
-            .map((song) => (
-              <button
-                key={song.id}
-                onClick={() => handleAddSong(playlist.id, song.id)}
-                className="flex items-center gap-2 bg-gray-200 px-3 py-1 rounded-lg hover:bg-gray-300 transition"
-              >
-                <img
-                  src={song.cover_url || "/default_cover.png"}
-                  alt={song.title}
-                  className="w-8 h-8 rounded-md object-cover flex-shrink-0"
-                  loading="lazy"
-                />
-                <span>{song.title} - {song.artist}</span>
-              </button>
-            ))}
-        </div>
-      )}
     </div>
   );
 }

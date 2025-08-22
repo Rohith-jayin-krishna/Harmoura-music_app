@@ -25,8 +25,8 @@ class Song(models.Model):
     artist = models.CharField(max_length=255)
     src = models.FileField(upload_to="songs/")  # Audio file
     cover = models.ImageField(upload_to="song_covers/", blank=True, null=True)  # Cover image
-    emotion = models.CharField(max_length=20, choices=EMOTIONS, blank=True, null=True)  # Emotion field
-    language = models.CharField(max_length=20, choices=LANGUAGES, blank=True, null=True)  # Language field
+    emotion = models.CharField(max_length=20, choices=EMOTIONS, blank=True, null=True)
+    language = models.CharField(max_length=20, choices=LANGUAGES, blank=True, null=True)
 
     def __str__(self):
         return f"{self.title} by {self.artist}"
@@ -44,10 +44,31 @@ class Playlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="playlists")
     name = models.CharField(max_length=255)
     songs = models.ManyToManyField(Song, blank=True, related_name="playlists")
+    cover = models.ImageField(upload_to="playlist_covers/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)  # Optional: for sorting by last update
 
     def __str__(self):
         return f"{self.name} ({self.user.username})"
+
+
+# ---------------- Playlist Activity ---------------- #
+class PlaylistActivity(models.Model):
+    """
+    Tracks user interactions with playlists to determine
+    recent and frequently opened playlists.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="playlist_activities")
+    playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE, related_name="activities")
+    last_opened = models.DateTimeField(auto_now=True)
+    open_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("user", "playlist")
+        ordering = ["-last_opened"]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.playlist.name}"
 
 
 # ---------------- User Profile ---------------- #
