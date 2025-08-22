@@ -105,8 +105,7 @@ def create_playlist(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def add_song_to_playlist(request):
-    playlist_id = request.data.get("playlist_id")
+def add_song_to_playlist(request, playlist_id):
     song_id = request.data.get("song_id")
 
     try:
@@ -124,8 +123,7 @@ def add_song_to_playlist(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def remove_song_from_playlist(request):
-    playlist_id = request.data.get("playlist_id")
+def remove_song_from_playlist(request, playlist_id):
     song_id = request.data.get("song_id")
 
     try:
@@ -329,7 +327,8 @@ def play_song(request):
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Song, UserProfile
+from .models import Song, UserProfile, Playlist, PlaylistActivity
+from django.db.models import F
 
 
 @api_view(["POST"])
@@ -348,26 +347,17 @@ def play_song(request):
     except Song.DoesNotExist:
         return Response({"error": "Song not found"}, status=404)
 
-    # Ensure user profile exists
     profile, _ = UserProfile.objects.get_or_create(user=user)
 
     # Ensure stats dicts exist
-    if not profile.emotion_stats:
-        profile.emotion_stats = {}
-    if not profile.artist_stats:
-        profile.artist_stats = {}
-    if not profile.language_stats:
-        profile.language_stats = {}
+    profile.emotion_stats = profile.emotion_stats or {}
+    profile.artist_stats = profile.artist_stats or {}
+    profile.language_stats = profile.language_stats or {}
 
-    # Update emotion stats
     if song.emotion:
         profile.emotion_stats[song.emotion] = profile.emotion_stats.get(song.emotion, 0) + 1
-
-    # Update artist stats
     if song.artist:
         profile.artist_stats[song.artist] = profile.artist_stats.get(song.artist, 0) + 1
-
-    # Update language stats
     if song.language:
         profile.language_stats[song.language] = profile.language_stats.get(song.language, 0) + 1
 
@@ -395,7 +385,6 @@ def recommended_songs(request):
     user = request.user
     profile, _ = UserProfile.objects.get_or_create(user=user)
 
-    # Fetch user stats safely
     emotion_stats = profile.emotion_stats or {}
     artist_stats = profile.artist_stats or {}
     language_stats = profile.language_stats or {}
@@ -404,33 +393,23 @@ def recommended_songs(request):
     song_scores = []
 
     for song in songs:
-        # Score from emotion preferences
         emotion_score = emotion_stats.get(song.emotion, 0) if song.emotion else 0
-        # Score from artist preferences
         artist_score = artist_stats.get(song.artist, 0) if song.artist else 0
-        # Score from language preferences
         language_score = language_stats.get(song.language, 0) if song.language else 0
 
-        # Weighted total score (Language > Emotion > Artist)
         total_score = (language_score * 3) + (emotion_score * 2) + (artist_score * 1)
-
         song_scores.append((total_score, song))
 
-    # Sort songs by score (highest first), then by ID for stable results
     song_scores.sort(key=lambda x: (x[0], x[1].id), reverse=True)
-
-    # Pick top 6
     top_songs = [song for _, song in song_scores[:6]]
 
-    # Helper for absolute URL
     def get_absolute_url(file_or_str):
         if not file_or_str:
             return None
-        if hasattr(file_or_str, "url"):  # FileField/ImageField
+        if hasattr(file_or_str, "url"):
             return request.build_absolute_uri(file_or_str.url)
-        return request.build_absolute_uri(str(file_or_str))  # fallback
+        return request.build_absolute_uri(str(file_or_str))
 
-    # Serialize response
     serialized = []
     for song in top_songs:
         serialized.append({
@@ -445,6 +424,70 @@ def recommended_songs(request):
 
     return Response(serialized)
 
+
+# ---------------- Recent & Frequent Playlists ---------------- #
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import PlaylistActivity, Playlist, Song
+from .serializers import PlaylistSerializer, SongSerializer
+from django.db.models import Q
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def recent_playlists(request):
+    """
+    Returns playlists based on:
+    1. Recently opened
+    2. Most frequently opened
+    """
+    user = request.user
+
+    # Prefetch songs to reduce queries
+    activities = PlaylistActivity.objects.filter(user=user)\
+        .select_related("playlist")\
+        .prefetch_related("playlist__songs")
+
+    # Recent playlists (last opened)
+    recent = activities.order_by("-last_opened")[:5]
+
+    # Frequent playlists (most opened), excluding duplicates from recent
+    recent_ids = [pl.playlist.id for pl in recent]
+    frequent = activities.exclude(playlist__id__in=recent_ids).order_by("-open_count")[:5]
+
+    def get_absolute_url(file_or_field):
+        if not file_or_field:
+            return None
+        if hasattr(file_or_field, "url"):
+            return request.build_absolute_uri(file_or_field.url)
+        return request.build_absolute_uri(str(file_or_field))
+
+    def serialize_playlist(activity):
+        playlist = activity.playlist
+        return {
+            "id": playlist.id,
+            "name": playlist.name,
+            "cover_url": get_absolute_url(playlist.cover),
+            "songs": [
+                {
+                    "id": s.id,
+                    "title": s.title,
+                    "artist": s.artist,
+                    "src": get_absolute_url(s.src),
+                    "cover_url": get_absolute_url(s.cover),
+                    "emotion": s.emotion,
+                    "language": s.language,
+                }
+                for s in playlist.songs.all()
+            ],
+            "last_opened": activity.last_opened,
+            "open_count": activity.open_count
+        }
+
+    return Response({
+        "recent_playlists": [serialize_playlist(pl) for pl in recent],
+        "frequent_playlists": [serialize_playlist(pl) for pl in frequent],
+    })
 # ---------------- Search & Tile Click ---------------- #
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated

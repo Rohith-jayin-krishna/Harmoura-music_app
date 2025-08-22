@@ -30,7 +30,13 @@ export default function Library() {
     localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
   const baseURL = "http://127.0.0.1:8000";
 
-  const toFullUrl = (u?: string) => (!u ? "" : u.startsWith("http") ? u : `${baseURL}${u}`);
+  // ✅ Updated to include fallback for missing files
+  const toFullUrl = (u?: string, fallback?: string) => {
+    if (!u) return fallback || "";
+    if (u.startsWith("http")) return u;
+    if (!u.startsWith("/")) u = "/" + u;
+    return `${baseURL}${u}`;
+  };
 
   const { handlePlaySong, currentSong } = usePlayer();
 
@@ -45,8 +51,8 @@ export default function Library() {
           ...playlist,
           songs: playlist.songs.map((s: Song) => ({
             ...s,
-            src: toFullUrl(s.src || s.file || s.audio || ""),
-            cover_url: s.cover_url ? toFullUrl(s.cover_url) : undefined,
+            src: toFullUrl(s.src || s.file || s.audio, "/media/default_song.mp3"),
+            cover_url: toFullUrl(s.cover_url, "/media/default_cover.png"),
           })),
         }));
         setPlaylists(normalizedPlaylists);
@@ -56,8 +62,8 @@ export default function Library() {
         });
         const normalizedSongs = songsRes.data.map((s: Song) => ({
           ...s,
-          src: toFullUrl(s.src || s.file || s.audio || ""),
-          cover_url: s.cover_url ? toFullUrl(s.cover_url) : undefined,
+          src: toFullUrl(s.src || s.file || s.audio, "/media/default_song.mp3"),
+          cover_url: toFullUrl(s.cover_url, "/media/default_cover.png"),
         }));
         setAllSongs(normalizedSongs);
       } catch (err) {
@@ -83,10 +89,10 @@ export default function Library() {
       setPlaylists([...playlists, res.data]);
       setNewPlaylistName("");
       setCreatingPlaylist(false);
-      successToast("Playlist created successfully!"); // ✅ toast
+      successToast("Playlist created successfully!");
     } catch (err) {
       console.error("Failed to create playlist:", err);
-      errorToast("Failed to create playlist."); // ✅ toast
+      errorToast("Failed to create playlist.");
     }
   };
 
@@ -96,12 +102,77 @@ export default function Library() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPlaylists(playlists.filter(p => p.id !== playlistId));
-      successToast("Playlist deleted successfully!"); // ✅ toast
+      successToast("Playlist deleted successfully!");
     } catch (err) {
       console.error("Failed to delete playlist:", err);
-      errorToast("Failed to delete playlist."); // ✅ toast
+      errorToast("Failed to delete playlist.");
     }
   };
+
+  // ✅ Add song to playlist (fixed URL to include playlist ID)
+  const handleAddSong = async (playlistId: number, songId: number) => {
+  try {
+    await axios.post(
+      `${baseURL}/api/users/playlists/${playlistId}/add-song/`,
+      { song_id: songId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const addedSong = allSongs.find(s => s.id === songId);
+    if (!addedSong) return;
+
+    // Update playlists array
+    setPlaylists(prev =>
+      prev.map(p =>
+        p.id === playlistId ? { ...p, songs: [...p.songs, addedSong] } : p
+      )
+    );
+
+    // Update currently open playlist
+    setOpenPlaylist(prev =>
+      prev && prev.id === playlistId
+        ? { ...prev, songs: [...prev.songs, addedSong] }
+        : prev
+    );
+
+    successToast("Song added to playlist!");
+  } catch (err) {
+    console.error("Failed to add song:", err);
+    errorToast("Failed to add song to playlist.");
+  }
+};
+
+// ✅ Remove song from playlist
+const handleRemoveSong = async (playlistId: number, songId: number) => {
+  try {
+    await axios.post(
+      `${baseURL}/api/users/playlists/${playlistId}/remove-song/`,
+      { song_id: songId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    // Update playlists array
+    setPlaylists(prev =>
+      prev.map(p =>
+        p.id === playlistId
+          ? { ...p, songs: p.songs.filter(s => s.id !== songId) }
+          : p
+      )
+    );
+
+    // Update currently open playlist
+    setOpenPlaylist(prev =>
+      prev && prev.id === playlistId
+        ? { ...prev, songs: prev.songs.filter(s => s.id !== songId) }
+        : prev
+    );
+
+    successToast("Song removed from playlist!");
+  } catch (err) {
+    console.error("Failed to remove song:", err);
+    errorToast("Failed to remove song from playlist.");
+  }
+};
 
   if (loading) return <p>Loading your library...</p>;
 
@@ -110,8 +181,8 @@ export default function Library() {
       <PlaylistView
         playlist={openPlaylist}
         allSongs={allSongs}
-        handleAddSong={() => {}}
-        handleRemoveSong={() => {}}
+        handleAddSong={handleAddSong}
+        handleRemoveSong={handleRemoveSong}
         onBack={() => setOpenPlaylist(null)}
       />
     );
