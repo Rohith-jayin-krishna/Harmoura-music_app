@@ -26,8 +26,6 @@ export default function Library() {
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
 
-  const token =
-    localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
   const baseURL = "http://127.0.0.1:8000";
 
   // ✅ Updated to include fallback for missing files
@@ -42,6 +40,9 @@ export default function Library() {
 
   useEffect(() => {
     const fetchData = async () => {
+      const token =
+        localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+
       try {
         const playlistRes = await axios.get(`${baseURL}/api/users/playlists/`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -75,9 +76,11 @@ export default function Library() {
     };
 
     fetchData();
-  }, [token]);
+  }, []);
 
   const handleCreatePlaylist = async () => {
+    const token =
+      localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
     if (!newPlaylistName.trim()) return;
 
     try {
@@ -97,6 +100,9 @@ export default function Library() {
   };
 
   const handleDeletePlaylist = async (playlistId: number) => {
+    const token =
+      localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+
     try {
       await axios.delete(`${baseURL}/api/users/playlists/delete/${playlistId}/`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -109,70 +115,91 @@ export default function Library() {
     }
   };
 
-  // ✅ Add song to playlist (fixed URL to include playlist ID)
+  // ✅ Add song to playlist
   const handleAddSong = async (playlistId: number, songId: number) => {
-  try {
-    await axios.post(
-      `${baseURL}/api/users/playlists/${playlistId}/add-song/`,
-      { song_id: songId },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const token =
+      localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
 
-    const addedSong = allSongs.find(s => s.id === songId);
-    if (!addedSong) return;
+    try {
+      await axios.post(
+        `${baseURL}/api/users/playlists/${playlistId}/add-song/`,
+        { song_id: songId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    // Update playlists array
-    setPlaylists(prev =>
-      prev.map(p =>
-        p.id === playlistId ? { ...p, songs: [...p.songs, addedSong] } : p
-      )
-    );
+      const addedSong = allSongs.find(s => s.id === songId);
+      if (!addedSong) return;
 
-    // Update currently open playlist
-    setOpenPlaylist(prev =>
-      prev && prev.id === playlistId
-        ? { ...prev, songs: [...prev.songs, addedSong] }
-        : prev
-    );
+      setPlaylists(prev =>
+        prev.map(p =>
+          p.id === playlistId ? { ...p, songs: [...p.songs, addedSong] } : p
+        )
+      );
 
-    successToast("Song added to playlist!");
-  } catch (err) {
-    console.error("Failed to add song:", err);
-    errorToast("Failed to add song to playlist.");
-  }
-};
+      setOpenPlaylist(prev =>
+        prev && prev.id === playlistId
+          ? { ...prev, songs: [...prev.songs, addedSong] }
+          : prev
+      );
 
-// ✅ Remove song from playlist
-const handleRemoveSong = async (playlistId: number, songId: number) => {
-  try {
-    await axios.post(
-      `${baseURL}/api/users/playlists/${playlistId}/remove-song/`,
-      { song_id: songId },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+      successToast("Song added to playlist!");
+    } catch (err) {
+      console.error("Failed to add song:", err);
+      errorToast("Failed to add song to playlist.");
+    }
+  };
 
-    // Update playlists array
-    setPlaylists(prev =>
-      prev.map(p =>
-        p.id === playlistId
-          ? { ...p, songs: p.songs.filter(s => s.id !== songId) }
-          : p
-      )
-    );
+  // ✅ Remove song from playlist
+  const handleRemoveSong = async (playlistId: number, songId: number) => {
+    const token =
+      localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
 
-    // Update currently open playlist
-    setOpenPlaylist(prev =>
-      prev && prev.id === playlistId
-        ? { ...prev, songs: prev.songs.filter(s => s.id !== songId) }
-        : prev
-    );
+    try {
+      await axios.post(
+        `${baseURL}/api/users/playlists/${playlistId}/remove-song/`,
+        { song_id: songId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    successToast("Song removed from playlist!");
-  } catch (err) {
-    console.error("Failed to remove song:", err);
-    errorToast("Failed to remove song from playlist.");
-  }
-};
+      setPlaylists(prev =>
+        prev.map(p =>
+          p.id === playlistId
+            ? { ...p, songs: p.songs.filter(s => s.id !== songId) }
+            : p
+        )
+      );
+
+      setOpenPlaylist(prev =>
+        prev && prev.id === playlistId
+          ? { ...prev, songs: prev.songs.filter(s => s.id !== songId) }
+          : prev
+      );
+
+      successToast("Song removed from playlist!");
+    } catch (err) {
+      console.error("Failed to remove song:", err);
+      errorToast("Failed to remove song from playlist.");
+    }
+  };
+
+  // ✅ Fixed: Notify backend when a playlist is opened with proper token
+  const handleOpenPlaylist = async (playlist: Playlist) => {
+    setOpenPlaylist(playlist);
+
+    const token =
+      localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+    if (!token) return;
+
+    try {
+      await axios.post(
+        `${baseURL}/api/users/playlists/${playlist.id}/open/`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error("Failed to notify playlist open:", err);
+    }
+  };
 
   if (loading) return <p>Loading your library...</p>;
 
@@ -238,21 +265,18 @@ const handleRemoveSong = async (playlistId: number, songId: number) => {
           return (
             <div
               key={playlist.id}
-              onClick={() => setOpenPlaylist(playlist)}
+              onClick={() => handleOpenPlaylist(playlist)} // ✅ use new function
               className="relative group cursor-pointer rounded-lg overflow-hidden shadow-sm hover:shadow-md transition transform hover:-translate-y-1 flex flex-col items-center justify-center p-3 sm:p-4"
               style={{ aspectRatio: "1 / 1", backgroundColor: "#f9f9f9" }}
             >
-              {/* First Letter */}
               <span className="text-gray-800 text-2xl sm:text-3xl md:text-4xl font-bold select-none">
                 {firstLetter}
               </span>
 
-              {/* Playlist Name */}
               <span className="mt-2 text-gray-600 text-xs sm:text-sm text-center truncate w-full px-1">
                 {playlist.name}
               </span>
 
-              {/* Delete Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();

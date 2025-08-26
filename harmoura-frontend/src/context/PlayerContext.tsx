@@ -4,7 +4,12 @@ const BASE_URL = "http://127.0.0.1:8000";
 const toFullUrl = (u?: string) =>
   !u ? "" : u.startsWith("http") ? u : `${BASE_URL}${u}`;
 
-export type Emotion = "Happiness" | "Sadness" | "Calmness" | "Excitement" | "Love";
+export type Emotion =
+  | "Happiness"
+  | "Sadness"
+  | "Calmness"
+  | "Excitement"
+  | "Love";
 
 interface Song {
   id: number;
@@ -12,6 +17,12 @@ interface Song {
   artist: string;
   src: string;
   emotion?: Emotion;
+}
+
+interface Playlist {
+  id: number;
+  name: string;
+  songs: Song[];
 }
 
 interface PlayerContextType {
@@ -27,7 +38,12 @@ interface PlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement>;
   emotionStats: Record<Emotion, number>;
   artistStats: Record<string, number>;
-  fetchRecommendedSongs: () => Promise<void>; // new for home
+  fetchRecommendedSongs: () => Promise<void>;
+  // NEW for Home
+  recentPlaylists: Playlist[];
+  frequentPlaylists: Playlist[];
+  fetchRecentPlaylists: () => Promise<void>;
+  fetchFrequentPlaylists: () => Promise<void>;
 }
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -49,10 +65,15 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [artistStats, setArtistStats] = useState<Record<string, number>>({});
 
+  // NEW states for Home
+  const [recentPlaylists, setRecentPlaylists] = useState<Playlist[]>([]);
+  const [frequentPlaylists, setFrequentPlaylists] = useState<Playlist[]>([]);
+
   const audioRef = useRef<HTMLAudioElement>(new Audio());
 
   const token =
-    localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+    localStorage.getItem("accessToken") ||
+    sessionStorage.getItem("accessToken");
 
   // Fetch stats from backend on load
   useEffect(() => {
@@ -83,13 +104,41 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const recommended: Song[] = await res.json();
-
       setCurrentPlaylist(recommended);
     } catch (err) {
       console.error("Failed to fetch recommended songs:", err);
     }
   };
 
+  // ----------------- Recent Playlists ----------------- //
+  const fetchRecentPlaylists = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BASE_URL}/api/users/playlists/recent/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const recent: Playlist[] = await res.json();
+      setRecentPlaylists(recent);
+    } catch (err) {
+      console.error("Failed to fetch recent playlists:", err);
+    }
+  };
+
+  // ----------------- Frequent Playlists ----------------- //
+  const fetchFrequentPlaylists = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BASE_URL}/api/users/playlists/frequent/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const frequent: Playlist[] = await res.json();
+      setFrequentPlaylists(frequent);
+    } catch (err) {
+      console.error("Failed to fetch frequent playlists:", err);
+    }
+  };
+
+  // ----------------- Handle Song Play ----------------- //
   const handlePlaySong = async (song: Song, playlist?: Song[]) => {
     if (!song) return;
 
@@ -100,7 +149,8 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (playlist) setCurrentPlaylist(playlist);
 
-    const playlistToUse = playlist || currentPlaylist.length ? currentPlaylist : songs;
+    const playlistToUse =
+      playlist || (currentPlaylist.length ? currentPlaylist : songs);
 
     const audioUrl = toFullUrl(song.src);
     const playable = { ...song, src: audioUrl };
@@ -171,7 +221,8 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const playPrevious = () => {
     if (!currentPlaylist.length || currentSongIndex === null) return;
-    const prevIndex = (currentSongIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+    const prevIndex =
+      (currentSongIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
     handlePlaySong(currentPlaylist[prevIndex], currentPlaylist);
   };
 
@@ -197,7 +248,11 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
         audioRef,
         emotionStats,
         artistStats,
-        fetchRecommendedSongs, // exposed for Home screen
+        fetchRecommendedSongs,
+        recentPlaylists,
+        frequentPlaylists,
+        fetchRecentPlaylists,
+        fetchFrequentPlaylists,
       }}
     >
       {children}
