@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.timezone import now
 
 # ---------------- Song Model ---------------- #
 class Song(models.Model):
@@ -50,6 +51,20 @@ class Playlist(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.user.username})"
+
+    # 🔑 New helper: log an "open" activity
+    def log_activity(self, user):
+        """Record that a user opened this playlist."""
+        activity, created = PlaylistActivity.objects.get_or_create(
+            user=user,
+            playlist=self,
+            defaults={"last_opened": now(), "open_count": 1},
+        )
+        if not created:
+            activity.open_count += 1
+            activity.last_opened = now()
+            activity.save()
+        return activity
 
 
 # ---------------- Playlist Activity ---------------- #

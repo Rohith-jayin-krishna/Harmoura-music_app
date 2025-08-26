@@ -4,7 +4,8 @@ from .views import (
     user_playlists, create_playlist, add_song_to_playlist,
     remove_song_from_playlist, delete_playlist,
     all_songs, public_songs, play_song, recommended_songs,
-    recent_playlists, search_songs_artists_emotions,
+    recent_playlists, frequent_playlists, playlist_open,  # ✅ added playlist_open
+    search_songs_artists_emotions,
     songs_by_artist, songs_by_emotion, songs_by_language,
     user_profile
 )
@@ -23,6 +24,8 @@ urlpatterns = [
 
     # ---------------- Recent & Frequent Playlists ---------------- #
     path("playlists/recent/", recent_playlists, name="recent_playlists"),
+    path("playlists/frequent/", frequent_playlists, name="frequent_playlists"),
+    path("playlists/<int:playlist_id>/open/", playlist_open, name="playlist_open"),  # ✅ new route
 
     # ---------------- Songs ---------------- #
     path("songs/", all_songs, name="all_songs"),
