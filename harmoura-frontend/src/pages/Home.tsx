@@ -1,11 +1,9 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { FaPlay, FaFilter } from "react-icons/fa";
+import { FaPlay } from "react-icons/fa";
 import { usePlayer } from "../context/PlayerContext";
-import Fuse from "fuse.js";
 import { infoToast } from "../utils/toasts";
 import PlaylistView from "../components/PlaylistView";
-import FilterPanel from "../components/FilterPanel";
 import CentralLibrarySearch from "../components/CentralLibrarySearch";
 
 type Song = {
@@ -28,22 +26,14 @@ type Playlist = {
 };
 
 export default function Home() {
-  const [songs, setSongs] = useState<Song[]>([]); // always holds recommended songs
-  const [displayedSongs, setDisplayedSongs] = useState<Song[]>([]); // what UI actually shows
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [displayedSongs, setDisplayedSongs] = useState<Song[]>([]);
   const [recentPlaylists, setRecentPlaylists] = useState<Playlist[]>([]);
   const [frequentPlaylists, setFrequentPlaylists] = useState<Playlist[]>([]);
-  const [searchActive, setSearchActive] = useState(false); // ✅ whether we’re showing search results
-
-  const [showFilters, setShowFilters] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
   const [openPlaylistView, setOpenPlaylistView] = useState<Playlist | null>(null);
 
-  // Filter states
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("All");
-  const [selectedEmotion, setSelectedEmotion] = useState<string>("All");
-  const [selectedArtist, setSelectedArtist] = useState<string>("All");
-
   const { handlePlaySong, currentSong, fetchRecommendedSongs } = usePlayer();
-  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const baseURL = "http://127.0.0.1:8000";
   const token =
@@ -72,7 +62,7 @@ export default function Home() {
 
         setSongs(recSongs);
         if (!searchActive) {
-          setDisplayedSongs(recSongs.slice(0, 8)); // only if not searching
+          setDisplayedSongs(recSongs.slice(0, 8));
         }
         await fetchRecommendedSongs();
       } catch (err) {
@@ -132,46 +122,13 @@ export default function Home() {
     loadPlaylists();
   }, [token]);
 
-  // ---------------- Unique Filter Options ----------------
-  const languages = [
-    "All",
-    ...Array.from(new Set(songs.map((s) => s.language).filter(Boolean))).sort() as string[],
-  ];
-  const emotions = [
-    "All",
-    ...Array.from(new Set(songs.map((s) => s.emotion).filter(Boolean))).sort() as string[],
-  ];
-  const artists = [
-    "All",
-    ...Array.from(new Set(songs.map((s) => s.artist).filter(Boolean))).sort() as string[],
-  ];
-
-  // ---------------- Close Filter Panel ----------------
-  useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setShowFilters(false);
-      }
-    };
-    if (showFilters) {
-      document.addEventListener("mousedown", onClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [showFilters]);
-
-  const clearFilters = () => {
-    setSelectedLanguage("All");
-    setSelectedEmotion("All");
-    setSelectedArtist("All");
-  };
-
   // ---------------- Play Song ----------------
   const playSongIfSignedIn = (song: Song) => {
     if (!token) {
       infoToast("Please sign in to play songs.");
       return;
     }
-    handlePlaySong(song, songs); // still tied to recommendations
+    handlePlaySong(song, songs);
   };
 
   // ---------------- Open Playlist Inline ----------------
@@ -198,7 +155,6 @@ export default function Home() {
     }
   };
 
-  // ---------------- Render PlaylistView Inline ----------------
   if (openPlaylistView) {
     return (
       <PlaylistView
@@ -211,21 +167,13 @@ export default function Home() {
     );
   }
 
-  // ---------------- Render Main UI ----------------
   return (
     <div className="p-4 md:p-6">
-      {/* ---------------- Filter Toggle ---------------- */}
+      {/* ---------------- Header ---------------- */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl md:text-3xl font-bold text-center md:text-left">
           {searchActive ? "Search Results" : "Recommended For You"}
         </h1>
-        <button
-          onClick={() => setShowFilters((prev) => !prev)}
-          className="p-2 bg-gray-100 text-gray-700 rounded-full shadow-sm hover:shadow-md transition"
-          title="Filters"
-        >
-          <FaFilter className="w-5 h-5" />
-        </button>
       </div>
 
       {/* ---------------- Central Library Search ---------------- */}
@@ -238,31 +186,12 @@ export default function Home() {
                 setDisplayedSongs(results);
                 setSearchActive(true);
               } else {
-                // If no results, fall back to recommendations
                 setDisplayedSongs(songs.slice(0, 8));
                 setSearchActive(false);
               }
             }}
           />
         </div>
-      )}
-
-      {/* ---------------- Filter Panel ---------------- */}
-      {showFilters && (
-        <FilterPanel
-          panelRef={panelRef}
-          languages={languages}
-          emotions={emotions}
-          artists={artists}
-          selectedLanguage={selectedLanguage}
-          selectedEmotion={selectedEmotion}
-          selectedArtist={selectedArtist}
-          onSelectLanguage={setSelectedLanguage}
-          onSelectEmotion={setSelectedEmotion}
-          onSelectArtist={setSelectedArtist}
-          onClear={clearFilters}
-          onClose={() => setShowFilters(false)}
-        />
       )}
 
       {/* ---------------- Songs Grid ---------------- */}
