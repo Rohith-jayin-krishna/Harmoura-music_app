@@ -71,7 +71,8 @@ export default function Home() {
     };
 
     loadRecommended();
-  }, [fetchRecommendedSongs, token, searchActive]);
+    // 🔥 removed `searchActive` from dependencies to avoid re-fetch loops
+  }, [fetchRecommendedSongs, token]);
 
   // ---------------- Fetch Recent & Frequent Playlists ----------------
   useEffect(() => {
