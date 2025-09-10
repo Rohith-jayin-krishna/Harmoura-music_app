@@ -62,7 +62,7 @@ export default function SignIn({ onSignIn }: SignInProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center text-[#f9243d]">Sign In</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center text-[#f9243d]">Sign In to Harmoura</h2>
 
         {errors && (
           <div className="bg-red-100 text-red-700 p-2 rounded mb-4">

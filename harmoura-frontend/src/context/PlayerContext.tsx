@@ -44,6 +44,12 @@ interface PlayerContextType {
   frequentPlaylists: Playlist[];
   fetchRecentPlaylists: () => Promise<void>;
   fetchFrequentPlaylists: () => Promise<void>;
+  // NEW for Queue
+  queue: Song[];
+  addToQueue: (song: Song) => void;
+  playNextSong: (song: Song) => void;
+  clearQueue: () => void;
+  removeFromQueue: (songId: number) => void; // 👈 NEW
 }
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -69,11 +75,22 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
   const [recentPlaylists, setRecentPlaylists] = useState<Playlist[]>([]);
   const [frequentPlaylists, setFrequentPlaylists] = useState<Playlist[]>([]);
 
+  // NEW: queue state (restore from sessionStorage if exists)
+  const [queue, setQueue] = useState<Song[]>(() => {
+    const stored = sessionStorage.getItem("queue");
+    return stored ? JSON.parse(stored) : [];
+  });
+
   const audioRef = useRef<HTMLAudioElement>(new Audio());
 
   const token =
     localStorage.getItem("accessToken") ||
     sessionStorage.getItem("accessToken");
+
+  // Persist queue to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem("queue", JSON.stringify(queue));
+  }, [queue]);
 
   // Fetch stats from backend on load
   useEffect(() => {
@@ -213,7 +230,15 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // ----------------- Queue Aware PlayNext ----------------- //
   const playNext = () => {
+    if (queue.length > 0) {
+      const [nextSong, ...rest] = queue;
+      setQueue(rest);
+      handlePlaySong(nextSong, currentPlaylist);
+      return;
+    }
+
     if (!currentPlaylist.length || currentSongIndex === null) return;
     const nextIndex = (currentSongIndex + 1) % currentPlaylist.length;
     handlePlaySong(currentPlaylist[nextIndex], currentPlaylist);
@@ -226,12 +251,35 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
     handlePlaySong(currentPlaylist[prevIndex], currentPlaylist);
   };
 
+  // ----------------- Queue Helpers ----------------- //
+  const addToQueue = (song: Song) => {
+    setQueue((prev) => {
+      if (prev.some((s) => s.id === song.id)) return prev; // no duplicates
+      return [...prev, song];
+    });
+  };
+
+  const playNextSong = (song: Song) => {
+    setQueue((prev) => {
+      if (prev.some((s) => s.id === song.id)) return prev; // no duplicates
+      return [song, ...prev];
+    });
+  };
+
+  const removeFromQueue = (songId: number) => {
+    setQueue((prev) => prev.filter((s) => s.id !== songId));
+  };
+
+  const clearQueue = () => {
+    setQueue([]);
+  };
+
   useEffect(() => {
     const audio = audioRef.current;
     const handleEnded = () => playNext();
     audio.addEventListener("ended", handleEnded);
     return () => audio.removeEventListener("ended", handleEnded);
-  }, [currentPlaylist, currentSongIndex]);
+  }, [currentPlaylist, currentSongIndex, queue]);
 
   return (
     <PlayerContext.Provider
@@ -253,6 +301,12 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
         frequentPlaylists,
         fetchRecentPlaylists,
         fetchFrequentPlaylists,
+        // NEW
+        queue,
+        addToQueue,
+        playNextSong,
+        clearQueue,
+        removeFromQueue,
       }}
     >
       {children}

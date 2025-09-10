@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { FaEllipsisV, FaPlus, FaTimes } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "../context/PlayerContext";
 import type { Song, Playlist } from "../pages/Library";
 
@@ -18,11 +19,14 @@ export default function PlaylistView({
   handleRemoveSong,
   onBack,
 }: Props) {
-  const { handlePlaySong, currentSong, isPlaying } = usePlayer();
+  const { handlePlaySong, currentSong, isPlaying, addToQueue, playNextSong } =
+    usePlayer();
+
   const [playlistSearch, setPlaylistSearch] = useState("");
   const [showLibrarySearch, setShowLibrarySearch] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [openMenu, setOpenMenu] = useState<number | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const safeCoverUrl = (url?: string) => url || "/media/default_cover.png";
@@ -31,7 +35,10 @@ export default function PlaylistView({
   const filteredSongs = playlist.songs.filter((song) => {
     if (!playlistSearch.trim()) return true;
     const q = playlistSearch.toLowerCase();
-    return song.title.toLowerCase().includes(q) || song.artist.toLowerCase().includes(q);
+    return (
+      song.title.toLowerCase().includes(q) ||
+      song.artist.toLowerCase().includes(q)
+    );
   });
 
   // Library songs filter (show 4 max)
@@ -40,16 +47,19 @@ export default function PlaylistView({
     .filter((s) => {
       if (!librarySearch.trim()) return true;
       const q = librarySearch.toLowerCase();
-      return s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q);
+      return (
+        s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
+      );
     })
     .slice(0, 4);
 
-  // Close dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
       }
+      setOpenMenu(null);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -66,7 +76,9 @@ export default function PlaylistView({
           &larr; Back to Playlists
         </button>
 
-        <h2 className="text-3xl font-bold text-gray-800 flex-shrink-0">{playlist.name}</h2>
+        <h2 className="text-3xl font-bold text-gray-800 flex-shrink-0">
+          {playlist.name}
+        </h2>
 
         {/* Add Songs / Search */}
         <div
@@ -110,7 +122,7 @@ export default function PlaylistView({
             </button>
           )}
 
-          {/* Dropdown */}
+          {/* Dropdown for search */}
           {showDropdown && showLibrarySearch && (
             <div className="absolute mt-1 w-full bg-white border rounded-lg shadow-lg z-20 overflow-hidden">
               {filteredLibrary.length > 0 ? (
@@ -130,7 +142,9 @@ export default function PlaylistView({
                       className="w-10 h-10 rounded-md object-cover"
                     />
                     <div className="flex flex-col text-left">
-                      <span className="text-sm font-medium text-gray-800">{song.title}</span>
+                      <span className="text-sm font-medium text-gray-800">
+                        {song.title}
+                      </span>
                       <span className="text-xs text-gray-500">{song.artist}</span>
                     </div>
                   </button>
@@ -165,7 +179,9 @@ export default function PlaylistView({
             <div
               key={song.id}
               className={`flex items-center justify-between p-3 border rounded-lg shadow hover:shadow-md transition cursor-pointer ${
-                isPlayingSong ? "bg-red-50 border-red-300" : "bg-white border-gray-200"
+                isPlayingSong
+                  ? "bg-red-50 border-red-300"
+                  : "bg-white border-gray-200"
               }`}
             >
               <div className="flex items-center space-x-4">
@@ -175,7 +191,9 @@ export default function PlaylistView({
                   className="w-14 h-14 object-cover rounded-lg border border-gray-200"
                 />
                 <div className="flex flex-col">
-                  <span className="text-lg font-semibold text-gray-800">{song.title}</span>
+                  <span className="text-lg font-semibold text-gray-800">
+                    {song.title}
+                  </span>
                   <span className="text-gray-500 text-sm">{song.artist}</span>
                 </div>
               </div>
@@ -198,18 +216,47 @@ export default function PlaylistView({
                   )}
                 </button>
 
-                <div className="relative group">
-                  <button className="p-2 hover:bg-gray-100 rounded-full transition">
+                {/* Dropdown with ONLY Play Next + Add to Queue */}
+                <div className="relative">
+                  <button
+                    className="p-2 hover:bg-gray-100 rounded-full transition"
+                    onClick={() =>
+                      setOpenMenu(openMenu === song.id ? null : song.id)
+                    }
+                  >
                     <FaEllipsisV />
                   </button>
-                  <div className="absolute right-0 mt-2 w-32 bg-white border rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition z-10">
-                    <button
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-lg"
-                      onClick={() => handleRemoveSong(playlist.id, song.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
+
+                  <AnimatePresence>
+                    {openMenu === song.id && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-20 overflow-hidden"
+                      >
+                        <button
+                          className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                          onClick={() => {
+                            playNextSong(song); // ✅ FIXED
+                            setOpenMenu(null);
+                          }}
+                        >
+                          ⏭ Play Next
+                        </button>
+                        <button
+                          className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                          onClick={() => {
+                            addToQueue(song);
+                            setOpenMenu(null);
+                          }}
+                        >
+                          ➕ Add to Queue
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </div>
